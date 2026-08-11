@@ -1,4 +1,5 @@
 import { ConversationList } from "@/components/inbox/conversation-list";
+import { PageHeader } from "@/components/page-header";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,12 +21,15 @@ export default async function InboxLayout({
     .limit(100);
 
   return (
-    <div className="flex h-screen min-w-0 flex-1">
-      <ConversationList
-        initialConversations={conversations ?? []}
-        profileId={profile.id}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+    <div className="flex h-screen min-w-0 flex-1 flex-col">
+      <PageHeader crumb="Conversaciones" title="Bandeja" />
+      <div className="flex min-h-0 min-w-0 flex-1 animate-rise-in">
+        <ConversationList
+          initialConversations={conversations ?? []}
+          profileId={profile.id}
+        />
+        <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

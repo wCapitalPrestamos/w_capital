@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import {
   applicationStatusLabels,
   installmentStatusLabels,
@@ -15,82 +14,88 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const tone = {
-  neutral: "bg-secondary text-secondary-foreground",
-  info: "bg-accent text-accent-foreground",
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/20 text-warning-foreground",
-  danger: "bg-destructive/10 text-destructive",
+// Chips del rediseño: pastilla 22px, fondo suave por tono
+export const chipTone = {
+  neutral: "bg-line-2 text-ink-2",
+  info: "bg-brand-soft text-brand-ink",
+  ok: "bg-ok-soft text-ok",
+  warn: "bg-warn-soft text-warn",
+  bad: "bg-bad-soft text-bad",
 } as const;
 
-type Tone = keyof typeof tone;
+export type ChipTone = keyof typeof chipTone;
 
-const applicationTones: Record<ApplicationStatus, Tone> = {
+export function Chip({
+  tone = "neutral",
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { tone?: ChipTone }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[22px] items-center rounded-full px-2.5 text-[11.5px] font-semibold whitespace-nowrap",
+        chipTone[tone],
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+const applicationTones: Record<ApplicationStatus, ChipTone> = {
   draft: "neutral",
-  docs_pending: "warning",
+  docs_pending: "warn",
   under_review: "info",
-  approved: "success",
-  rejected: "danger",
-  disbursed: "success",
+  approved: "ok",
+  rejected: "bad",
+  disbursed: "ok",
   cancelled: "neutral",
 };
 
-const loanTones: Record<LoanStatus, Tone> = {
-  active: "info",
-  paid_off: "success",
-  overdue: "danger",
+const loanTones: Record<LoanStatus, ChipTone> = {
+  active: "ok",
+  paid_off: "neutral",
+  overdue: "bad",
   written_off: "neutral",
 };
 
-const installmentTones: Record<InstallmentStatus, Tone> = {
+const installmentTones: Record<InstallmentStatus, ChipTone> = {
   pending: "neutral",
-  partial: "warning",
-  paid: "success",
-  overdue: "danger",
+  partial: "warn",
+  paid: "ok",
+  overdue: "bad",
 };
 
-const leadTones: Record<LeadStage, Tone> = {
+const leadTones: Record<LeadStage, ChipTone> = {
   new: "info",
   contacted: "neutral",
-  interested: "warning",
-  applying: "success",
+  interested: "warn",
+  applying: "ok",
   discarded: "neutral",
 };
 
-const reviewTones: Record<ReviewStatus, Tone> = {
-  pending: "warning",
-  approved: "success",
-  rejected: "danger",
+const reviewTones: Record<ReviewStatus, ChipTone> = {
+  pending: "warn",
+  approved: "ok",
+  rejected: "bad",
 };
 
-function StatusBadge({ label, toneKey }: { label: string; toneKey: Tone }) {
-  return (
-    <Badge variant="secondary" className={cn("border-transparent", tone[toneKey])}>
-      {label}
-    </Badge>
-  );
-}
-
 export function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
-  return (
-    <StatusBadge label={applicationStatusLabels[status]} toneKey={applicationTones[status]} />
-  );
+  return <Chip tone={applicationTones[status]}>{applicationStatusLabels[status]}</Chip>;
 }
 
 export function LoanStatusBadge({ status }: { status: LoanStatus }) {
-  return <StatusBadge label={loanStatusLabels[status]} toneKey={loanTones[status]} />;
+  return <Chip tone={loanTones[status]}>{loanStatusLabels[status]}</Chip>;
 }
 
 export function InstallmentStatusBadge({ status }: { status: InstallmentStatus }) {
-  return (
-    <StatusBadge label={installmentStatusLabels[status]} toneKey={installmentTones[status]} />
-  );
+  return <Chip tone={installmentTones[status]}>{installmentStatusLabels[status]}</Chip>;
 }
 
 export function LeadStageBadge({ stage }: { stage: LeadStage }) {
-  return <StatusBadge label={leadStageLabels[stage]} toneKey={leadTones[stage]} />;
+  return <Chip tone={leadTones[stage]}>{leadStageLabels[stage]}</Chip>;
 }
 
 export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
-  return <StatusBadge label={reviewStatusLabels[status]} toneKey={reviewTones[status]} />;
+  return <Chip tone={reviewTones[status]}>{reviewStatusLabels[status]}</Chip>;
 }

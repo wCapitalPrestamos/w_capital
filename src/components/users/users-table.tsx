@@ -142,12 +142,12 @@ export function UsersTable({ profiles, myId }: { profiles: Profile[]; myId: stri
         </Table>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuevo usuario</DialogTitle>
           </DialogHeader>
-          <form action={handleCreate} className="grid gap-4">
+          <form action={handleCreate} className="grid gap-4 px-7 py-[22px]">
             <div className="grid gap-2">
               <Label htmlFor="full_name">Nombre completo</Label>
               <Input id="full_name" name="full_name" required />

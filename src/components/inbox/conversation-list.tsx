@@ -3,11 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Bot, Search, User } from "lucide-react";
+import { Search } from "lucide-react";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRelativeTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import type { Conversation } from "@/lib/types";
@@ -16,6 +13,12 @@ import { cn } from "@/lib/utils";
 export type ConversationListItem = Conversation & {
   contact: { id: string; full_name: string; phone: string | null } | null;
 };
+
+const TABS = [
+  { key: "all", label: "Todas" },
+  { key: "mine", label: "Mías" },
+  { key: "unassigned", label: "Sin asignar" },
+] as const;
 
 export function ConversationList({
   initialConversations,
@@ -84,30 +87,39 @@ export function ConversationList({
   }, [conversations, tab, profileId, search]);
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r bg-card">
-      <div className="border-b p-3">
-        <h2 className="mb-2 px-1 text-lg font-semibold">Bandeja</h2>
-        <div className="relative mb-2">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+    <aside className="flex h-full w-[280px] shrink-0 flex-col border-r border-line-2 bg-surface xl:w-[326px]">
+      <div className="flex flex-col gap-2.5 border-b border-line-2 p-4 pb-3.5">
+        <div className="flex h-[34px] items-center gap-2 rounded-[10px] border border-line-2 bg-surface-2 px-[11px] text-ink-3">
+          <Search className="size-[15px] shrink-0" strokeWidth={1.7} />
+          <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre o teléfono"
-            className="pl-8"
+            className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
           />
         </div>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="w-full">
-            <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
-            <TabsTrigger value="mine" className="flex-1">Mías</TabsTrigger>
-            <TabsTrigger value="unassigned" className="flex-1">Sin asignar</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex gap-[3px] rounded-[11px] border border-line-2 bg-surface-2 p-[3px]">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={cn(
+                "h-7 flex-1 cursor-pointer rounded-lg border text-xs font-medium transition-all",
+                tab === key
+                  ? "border-line-2 bg-surface text-ink shadow-card"
+                  : "border-transparent bg-transparent text-ink-2 hover:text-ink",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {visible.length === 0 && (
-          <p className="p-6 text-center text-sm text-muted-foreground">
+          <p className="p-6 text-center text-sm text-ink-3">
             No hay conversaciones aquí.
           </p>
         )}
@@ -119,45 +131,50 @@ export function ConversationList({
               key={c.id}
               href={`/inbox/${c.id}`}
               className={cn(
-                "flex items-start gap-3 border-b px-3 py-3 transition-colors hover:bg-accent/40",
-                active && "bg-accent/60",
+                "flex gap-3 border-b border-l-2 border-b-line-2 px-4 py-3.5 transition-colors",
+                active
+                  ? "border-l-brand bg-brand-soft"
+                  : "border-l-transparent hover:bg-surface-2",
               )}
             >
-              <div className="relative mt-0.5">
-                <div className="flex size-10 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+              <div className="relative shrink-0">
+                <span className="inline-flex size-10 items-center justify-center rounded-[14px] border border-line-2 bg-surface-2 text-sm font-semibold text-ink-2">
                   {name.slice(0, 1).toUpperCase()}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-card p-0.5">
+                </span>
+                <span className="absolute -right-1 -bottom-1 inline-flex rounded-full bg-surface p-0.5">
                   <ChannelIcon channel={c.channel} />
                 </span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">{name}</p>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                  <p className="truncate text-[13.5px] font-semibold tracking-[-.01em]">
+                    {name}
+                  </p>
+                  <span className="shrink-0 text-[11px] text-ink-3">
                     {formatRelativeTime(c.last_message_at)}
                   </span>
                 </div>
-                <div className="mt-0.5 flex items-center justify-between gap-2">
-                  <p className="truncate text-xs text-muted-foreground">
+                <div className="mt-[3px] flex items-center justify-between gap-2">
+                  <p className="truncate text-xs text-ink-2">
                     {c.last_preview || "…"}
                   </p>
                   {c.unread_count > 0 && (
-                    <Badge className="size-5 shrink-0 justify-center rounded-full p-0 text-[10px]">
+                    <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-[5px] text-[10.5px] font-semibold text-white">
                       {c.unread_count > 9 ? "9+" : c.unread_count}
-                    </Badge>
+                    </span>
                   )}
                 </div>
-                <div className="mt-1">
-                  {c.status === "bot" ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
-                      <Bot className="size-3" /> Bot
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
-                      <User className="size-3" /> Humano
-                    </span>
-                  )}
+                <div className="mt-[7px]">
+                  <span
+                    className={cn(
+                      "inline-flex h-[19px] items-center rounded-full px-2 text-[10.5px] font-semibold",
+                      c.status === "bot"
+                        ? "bg-line-2 text-ink-2"
+                        : "bg-ok-soft text-ok",
+                    )}
+                  >
+                    {c.status === "bot" ? "Bot" : "Humano"}
+                  </span>
                 </div>
               </div>
             </Link>

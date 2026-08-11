@@ -17,10 +17,7 @@ export default async function UsuariosPage() {
 
   return (
     <>
-      <PageHeader
-        title="Usuarios del equipo"
-        description="Cuentas con acceso al CRM"
-      />
+      <PageHeader crumb="Ajustes" title="Usuarios del equipo" />
       <div className="flex-1 p-6">
         <UsersTable profiles={(profiles ?? []) as Profile[]} myId={me.id} />
       </div>

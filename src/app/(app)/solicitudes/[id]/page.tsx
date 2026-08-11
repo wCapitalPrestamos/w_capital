@@ -13,6 +13,7 @@ import {
   applicationFolio,
   applicationStatusLabels,
   borrowerTypeLabels,
+  collateralTypeLabels,
 } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -64,10 +65,11 @@ export default async function SolicitudDetailPage({
 
   return (
     <>
-      <PageHeader title={`Solicitud ${applicationFolio(app.folio)}`}>
+      <PageHeader crumb="Originación" title={`Solicitud ${applicationFolio(app.folio)}`}>
         <Button
           variant="outline"
           size="sm"
+          nativeButton={false}
           render={<Link href="/solicitudes"><ArrowLeft className="size-4" /> Pipeline</Link>}
         />
       </PageHeader>
@@ -108,11 +110,7 @@ export default async function SolicitudDetailPage({
               </Detail>
               <Detail label="Destino">{app.purpose ?? "—"}</Detail>
               <Detail label="Garantía">
-                {app.collateral_type === "property"
-                  ? "Propiedad"
-                  : app.collateral_type === "car"
-                    ? "Automóvil"
-                    : "—"}
+                {app.collateral_type ? collateralTypeLabels[app.collateral_type] : "—"}
                 {app.collateral_description ? ` — ${app.collateral_description}` : ""}
               </Detail>
               <Detail label="Asesora">

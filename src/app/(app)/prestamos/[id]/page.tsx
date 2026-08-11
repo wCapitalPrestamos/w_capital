@@ -60,13 +60,23 @@ export default async function PrestamoDetailPage({
 
   return (
     <>
-      <PageHeader title={`Préstamo ${loanFolio(loan.folio)}`}>
+      <PageHeader crumb="Cartera" title={`Préstamo ${loanFolio(loan.folio)}`}>
         <Button
           variant="outline"
           size="sm"
+          nativeButton={false}
           render={<Link href="/prestamos"><ArrowLeft className="size-4" /> Cartera</Link>}
         />
-        {loan.status !== "paid_off" && <RecordPaymentDialog loanId={loan.id} />}
+        {loan.status !== "paid_off" && (
+          <RecordPaymentDialog
+            loanId={loan.id}
+            summary={{
+              name: loan.contact.full_name || loan.contact.phone || "Sin nombre",
+              folio: loanFolio(loan.folio),
+              weekly: Number(loan.weekly_payment),
+            }}
+          />
+        )}
       </PageHeader>
 
       <div className="grid flex-1 gap-6 p-6 xl:grid-cols-3">

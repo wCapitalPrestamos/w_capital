@@ -169,23 +169,24 @@ export function Thread({
   };
 
   const name = contact.full_name || contact.phone || "Sin nombre";
+  const isBotStatus = conversation.status === "bot";
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col">
+    <div className="flex h-full min-w-0 flex-1 flex-col bg-background">
       {/* Encabezado */}
-      <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-3">
+      <header className="flex items-center justify-between gap-3.5 border-b border-line-2 bg-surface px-6 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+          <span className="inline-flex size-[38px] shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-semibold text-brand-ink">
             {name.slice(0, 1).toUpperCase()}
-          </div>
+          </span>
           <div className="min-w-0">
             <Link
               href={`/clientes/${contact.id}`}
-              className="block truncate text-sm font-semibold hover:underline"
+              className="block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
             >
               {name}
             </Link>
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-xs text-ink-2">
               <ChannelIcon channel={conversation.channel} />
               {channelLabels[conversation.channel]}
               {contact.phone ? ` · ${contact.phone}` : ""}
@@ -193,38 +194,44 @@ export function Thread({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {conversation.status === "bot" ? (
-            <>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+        <div className="flex shrink-0 items-center gap-2.5">
+          <span
+            className={cn(
+              "inline-flex h-[26px] items-center gap-1.5 rounded-full px-[11px] text-[11.5px] font-semibold",
+              isBotStatus ? "bg-line-2 text-ink-2" : "bg-ok-soft text-ok",
+            )}
+          >
+            {isBotStatus ? (
+              <>
                 <Bot className="size-3.5" /> Bot activo
-              </span>
-              <Button size="sm" onClick={() => takeConversation(conversation.id)}>
-                <User className="size-4" /> Atender
-              </Button>
-            </>
-          ) : (
-            <>
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-1 text-xs font-medium text-accent-foreground">
+              </>
+            ) : (
+              <>
                 <User className="size-3.5" />
                 {conversation.assigned_to
                   ? (profileNames[conversation.assigned_to] ?? "Asignada")
                   : "Humano"}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => returnToBot(conversation.id)}
-              >
-                <Bot className="size-4" /> Devolver al bot
-              </Button>
-            </>
+              </>
+            )}
+          </span>
+          {isBotStatus ? (
+            <Button size="sm" onClick={() => takeConversation(conversation.id)}>
+              Atender
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => returnToBot(conversation.id)}
+            >
+              Devolver al bot
+            </Button>
           )}
         </div>
       </header>
 
       {/* Mensajes */}
-      <div className="flex-1 space-y-3 overflow-y-auto bg-background p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-[22px]">
         {messages.map((m) => (
           <MessageBubble key={m.id} message={m} profileNames={profileNames} />
         ))}
@@ -232,16 +239,16 @@ export function Thread({
       </div>
 
       {/* Compositor */}
-      <footer className="border-t bg-card p-3">
+      <footer className="border-t border-line-2 bg-surface px-6 pt-3.5 pb-[18px]">
         {outsideWindow && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg bg-warning/15 px-3 py-2 text-xs text-warning-foreground">
-            <Clock className="size-4 shrink-0" />
+          <div className="mb-[11px] flex items-center gap-2.5 rounded-xl bg-warn-soft px-[13px] py-2.5 text-xs leading-[1.45] text-warn">
+            <Clock className="size-[15px] shrink-0" />
             {conversation.channel === "whatsapp"
               ? "Pasaron más de 24 h del último mensaje del cliente: solo se pueden enviar plantillas aprobadas de WhatsApp."
               : "Pasaron más de 24 h del último mensaje del cliente: Messenger ya no permite responder."}
           </div>
         )}
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2.5">
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -257,7 +264,7 @@ export function Thread({
                 : `Responder a ${name}…`
             }
             disabled={outsideWindow || sending}
-            className="max-h-36 min-h-10 flex-1 resize-none"
+            className="max-h-36 min-h-11 flex-1 resize-none rounded-[14px]"
             rows={1}
           />
           <Button
@@ -265,10 +272,14 @@ export function Thread({
             onClick={handleSend}
             disabled={!draft.trim() || outsideWindow || sending}
             aria-label="Enviar"
+            className="size-11 rounded-[14px]"
           >
-            <Send className="size-4" />
+            <Send className="size-[17px]" />
           </Button>
         </div>
+        <p className="mx-0.5 mt-[9px] text-[11px] text-ink-3">
+          Enter envía · Shift + Enter salta de línea
+        </p>
       </footer>
     </div>
   );
@@ -294,21 +305,19 @@ function MessageBubble({
     <div className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+          "max-w-[74%] rounded-[18px] px-[15px] py-3 text-[13.5px] leading-[1.5] shadow-card",
           isOutbound
             ? isBot
-              ? "rounded-br-sm bg-secondary text-secondary-foreground"
-              : "rounded-br-sm bg-primary text-primary-foreground"
-            : "rounded-bl-sm border bg-card",
+              ? "rounded-br-md border border-line-2 bg-surface-2 text-ink"
+              : "rounded-br-md bg-brand text-white"
+            : "rounded-bl-md border border-line-2 bg-surface",
         )}
       >
         {senderLabel && (
           <p
             className={cn(
-              "mb-0.5 flex items-center gap-1 text-[11px] font-semibold",
-              isOutbound && !isBot
-                ? "text-primary-foreground/80"
-                : "text-muted-foreground",
+              "mb-1 flex items-center gap-1 text-[11px] font-semibold",
+              isOutbound && !isBot ? "text-white/75" : "text-ink-3",
             )}
           >
             {isBot && <Bot className="size-3" />}
@@ -324,10 +333,8 @@ function MessageBubble({
         )}
         <p
           className={cn(
-            "mt-1 flex items-center justify-end gap-1 text-[10px]",
-            isOutbound && !isBot
-              ? "text-primary-foreground/70"
-              : "text-muted-foreground",
+            "mt-1.5 flex items-center justify-end gap-[5px] text-[10.5px]",
+            isOutbound && !isBot ? "text-white/70" : "text-ink-3",
           )}
         >
           {formatDateTime(m.sent_at ?? m.created_at)}
@@ -343,7 +350,7 @@ function StatusTick({ status }: { status: Message["status"] }) {
   if (status === "sent") return <Check className="size-3" />;
   if (status === "delivered") return <CheckCheck className="size-3" />;
   if (status === "read") return <CheckCheck className="size-3 text-sky-300" />;
-  if (status === "failed") return <X className="size-3 text-destructive" />;
+  if (status === "failed") return <X className="size-3 text-bad" />;
   return null;
 }
 

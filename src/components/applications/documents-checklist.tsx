@@ -226,7 +226,7 @@ export function DocumentsChecklist({
         </p>
       </CardContent>
 
-      <Dialog open={rejecting !== null} onOpenChange={(o) => !o && setRejecting(null)}>
+      <Dialog open={rejecting !== null} onOpenChange={(o) => !o && setRejecting(null)} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rechazar documento</DialogTitle>
@@ -248,7 +248,7 @@ export function DocumentsChecklist({
                 } else toast.error(result.error ?? "Error al rechazar.");
               });
             }}
-            className="grid gap-4"
+            className="grid gap-4 px-7 py-[22px]"
           >
             <div className="grid gap-2">
               <Label htmlFor="note">Motivo (visible para el cliente en el portal)</Label>

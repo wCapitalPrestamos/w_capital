@@ -158,7 +158,7 @@ export function ApplicationActions({
       </CardContent>
 
       {/* Aprobar */}
-      <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+      <Dialog open={approveOpen} onOpenChange={setApproveOpen} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Aprobar solicitud</DialogTitle>
@@ -179,7 +179,7 @@ export function ApplicationActions({
                 "Solicitud aprobada.",
               )
             }
-            className="grid gap-4"
+            className="grid gap-4 px-7 py-[22px]"
           >
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
@@ -219,7 +219,7 @@ export function ApplicationActions({
       </Dialog>
 
       {/* Rechazar */}
-      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rechazar solicitud</DialogTitle>
@@ -234,7 +234,7 @@ export function ApplicationActions({
                 "Solicitud rechazada.",
               )
             }
-            className="grid gap-4"
+            className="grid gap-4 px-7 py-[22px]"
           >
             <div className="grid gap-2">
               <Label htmlFor="reason">Motivo del rechazo</Label>
@@ -248,12 +248,12 @@ export function ApplicationActions({
       </Dialog>
 
       {/* Desembolso */}
-      <Dialog open={disburseOpen} onOpenChange={setDisburseOpen}>
+      <Dialog open={disburseOpen} onOpenChange={setDisburseOpen} disablePointerDismissal>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar desembolso</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+          <p className="px-7 pt-[22px] text-sm text-muted-foreground">
             Se generará el calendario de {app.approved_term_weeks} pagos semanales
             sobre el monto aprobado.
           </p>
@@ -268,7 +268,7 @@ export function ApplicationActions({
                 "Préstamo desembolsado. Calendario generado.",
               )
             }
-            className="grid gap-4"
+            className="grid gap-4 px-7 py-[22px]"
           >
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">

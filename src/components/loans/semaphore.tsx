@@ -15,9 +15,9 @@ export function Semaphore({
     daysLate > 7 || overdueCount >= 2 ? "red" : daysLate >= 1 ? "yellow" : "green";
 
   const color = {
-    green: "bg-success",
-    yellow: "bg-warning",
-    red: "bg-destructive",
+    green: "bg-ok",
+    yellow: "bg-warn",
+    red: "bg-bad",
   }[level];
 
   const label = {
@@ -27,9 +27,9 @@ export function Semaphore({
   }[level];
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm">
-      <span className={cn("size-2.5 rounded-full", color)} aria-hidden />
-      {withLabel && <span className="text-muted-foreground">{label}</span>}
+    <span className="inline-flex items-center gap-[7px] text-[12.5px]">
+      <span className={cn("size-[9px] rounded-full", color)} aria-hidden />
+      {withLabel && <span className="text-ink-2">{label}</span>}
     </span>
   );
 }

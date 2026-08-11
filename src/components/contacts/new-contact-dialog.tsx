@@ -5,25 +5,26 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createContact } from "@/actions/contacts";
+import { ChipOptions } from "@/components/option-chips";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogEyebrow,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { sourceChannelLabels } from "@/lib/labels";
 import type { SourceChannel } from "@/lib/types";
+
+const SOURCE_OPTIONS = (
+  Object.entries(sourceChannelLabels) as [SourceChannel, string][]
+).map(([value, label]) => ({ value, label }));
 
 export function NewContactDialog() {
   const router = useRouter();
@@ -50,45 +51,78 @@ export function NewContactDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button><Plus className="size-4" /> Nuevo cliente</Button>} />
+    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
+      <DialogTrigger
+        render={
+          <Button>
+            <Plus className="size-4" /> Nuevo cliente
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
+          <DialogEyebrow>Directorio</DialogEyebrow>
           <DialogTitle>Nuevo cliente</DialogTitle>
         </DialogHeader>
-        <form action={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="full_name">Nombre completo</Label>
-            <Input id="full_name" name="full_name" required />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Teléfono</Label>
-              <Input id="phone" name="phone" placeholder="+52…" />
+        <form action={handleSubmit}>
+          <DialogBody>
+            <div className="grid gap-[7px]">
+              <Label htmlFor="full_name" className="text-[12.5px] font-semibold">
+                Nombre completo
+              </Label>
+              <Input
+                id="full_name"
+                name="full_name"
+                placeholder="María Elena Rubio"
+                required
+              />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Correo</Label>
-              <Input id="email" name="email" type="email" />
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid gap-[7px]">
+                <Label htmlFor="phone" className="text-[12.5px] font-semibold">
+                  Teléfono
+                </Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  placeholder="+52 662…"
+                  className="font-mono text-[13px]"
+                />
+              </div>
+              <div className="grid gap-[7px]">
+                <Label htmlFor="email" className="text-[12.5px] font-semibold">
+                  Correo
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="nombre@correo.com"
+                />
+              </div>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Canal de origen</Label>
-            <Select value={source} onValueChange={(v) => v && setSource(v as SourceChannel)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(sourceChannelLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Creando…" : "Crear cliente"}
-          </Button>
+            <div className="grid gap-[7px]">
+              <Label className="text-[12.5px] font-semibold">Canal de origen</Label>
+              <ChipOptions
+                options={SOURCE_OPTIONS}
+                value={source}
+                onChange={setSource}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={() => setOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" size="lg" disabled={pending}>
+              {pending ? "Creando…" : "Crear cliente"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

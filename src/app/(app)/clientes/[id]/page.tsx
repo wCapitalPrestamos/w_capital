@@ -49,8 +49,8 @@ export default async function ClienteDetailPage({
 
   return (
     <>
-      <PageHeader title={contact.full_name || "Sin nombre"}>
-        <Button variant="outline" size="sm" render={<Link href="/clientes"><ArrowLeft className="size-4" /> Clientes</Link>} />
+      <PageHeader crumb="Directorio" title={contact.full_name || "Sin nombre"}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/clientes"><ArrowLeft className="size-4" /> Clientes</Link>} />
         <CreateLeadButton contactId={contact.id} />
         <CreateApplicationButton contactId={contact.id} />
       </PageHeader>

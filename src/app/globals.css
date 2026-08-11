@@ -7,9 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-instrument-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+  --font-serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+  --font-heading: var(--font-serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,6 +44,29 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  /* Tokens del rediseño (claude.ai/design "W_capital interfaz premium") */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink2);
+  --color-ink-3: var(--ink3);
+  --color-line: var(--line);
+  --color-line-2: var(--line2);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --shadow-card: var(--sh);
+  --shadow-lifted: var(--sh-lg);
+  --shadow-brand: 0 8px 18px -10px rgba(247, 91, 50, 0.9);
+  --animate-rise-in: rise-in 0.45s ease both;
+  --animate-grow-bar: grow-bar 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-grow-row: grow-row 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -52,48 +76,121 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes grow-bar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes grow-row {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 /*
- * Marca W Capital — naranja del logo #F75B32, texto gris #3F4245,
- * fondo gris claro #F2F2F2. Tema claro único (herramienta interna).
+ * Marca W Capital — rediseño premium: fondo cálido, naranja #F75B32,
+ * serif para títulos y mono para cifras. Tema claro + oscuro (toggle).
  */
 :root {
-  --background: oklch(0.965 0.002 67);
-  --foreground: oklch(0.35 0.008 258);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.35 0.008 258);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.35 0.008 258);
-  --primary: oklch(0.67 0.195 33);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.004 67);
-  --secondary-foreground: oklch(0.35 0.008 258);
-  --muted: oklch(0.955 0.004 67);
-  --muted-foreground: oklch(0.52 0.01 258);
-  --accent: oklch(0.945 0.026 40);
-  --accent-foreground: oklch(0.5 0.15 33);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: oklch(0.55 0.13 150);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.72 0.15 75);
-  --warning-foreground: oklch(0.3 0.05 75);
-  --border: oklch(0.905 0.004 67);
-  --input: oklch(0.905 0.004 67);
-  --ring: oklch(0.67 0.195 33);
-  /* Paleta categórica validada (dataviz: 6 checks PASS sobre superficie clara) */
+  --bg: #f5f3f0;
+  --surface: #ffffff;
+  --surface2: #faf8f6;
+  --ink: #232527;
+  --ink2: #74797e;
+  --ink3: #9ca1a6;
+  --line: rgba(35, 37, 39, 0.1);
+  --line2: rgba(35, 37, 39, 0.06);
+  --brand: #f75b32;
+  --brand-ink: #c8401d;
+  --brand-soft: rgba(247, 91, 50, 0.1);
+  --ok: #1f8a53;
+  --ok-soft: rgba(31, 138, 83, 0.12);
+  --warn: #b87400;
+  --warn-soft: rgba(184, 116, 0, 0.13);
+  --bad: #d93a2b;
+  --bad-soft: rgba(217, 58, 43, 0.1);
+  --sh: 0 1px 2px rgba(35, 37, 39, 0.05), 0 8px 24px -12px rgba(35, 37, 39, 0.14);
+  --sh-lg: 0 2px 4px rgba(35, 37, 39, 0.05), 0 20px 44px -20px rgba(35, 37, 39, 0.28);
+
+  /* Mapeo shadcn → tokens del rediseño */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface2);
+  --muted-foreground: var(--ink2);
+  --accent: var(--brand-soft);
+  --accent-foreground: var(--brand-ink);
+  --destructive: var(--bad);
+  --success: var(--ok);
+  --success-foreground: #ffffff;
+  --warning: var(--warn);
+  --warning-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+  /* Paleta categórica validada (dataviz) */
   --chart-1: #f75b32;
   --chart-2: #2e7db2;
   --chart-3: #2e9e63;
   --chart-4: #8b5cc7;
   --chart-5: #b87400;
-  --radius: 0.625rem;
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.35 0.008 258);
-  --sidebar-primary: oklch(0.67 0.195 33);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.945 0.026 40);
-  --sidebar-accent-foreground: oklch(0.5 0.15 33);
-  --sidebar-border: oklch(0.905 0.004 67);
-  --sidebar-ring: oklch(0.67 0.195 33);
+  --radius: 0.75rem;
+  --sidebar: var(--surface2);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-soft);
+  --sidebar-accent-foreground: var(--brand-ink);
+  --sidebar-border: var(--line2);
+  --sidebar-ring: var(--brand);
+}
+
+.dark {
+  --bg: #141311;
+  --surface: #1c1b19;
+  --surface2: #211f1d;
+  --ink: #efece8;
+  --ink2: #a29c95;
+  --ink3: #7c766f;
+  --line: rgba(255, 255, 255, 0.13);
+  --line2: rgba(255, 255, 255, 0.07);
+  --brand: #ff6a40;
+  --brand-ink: #ffa184;
+  --brand-soft: rgba(255, 106, 64, 0.16);
+  --ok: #4cb985;
+  --ok-soft: rgba(76, 185, 133, 0.15);
+  --warn: #e0a23c;
+  --warn-soft: rgba(224, 162, 60, 0.15);
+  --bad: #f3705f;
+  --bad-soft: rgba(243, 112, 95, 0.15);
+  --sh: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 26px -14px rgba(0, 0, 0, 0.8);
+  --sh-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 50px -22px rgba(0, 0, 0, 0.9);
+  --warning-foreground: #141311;
 }
 
 @layer base {
@@ -102,8 +199,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    transition: background 0.35s ease, color 0.35s ease;
   }
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
   }
 }

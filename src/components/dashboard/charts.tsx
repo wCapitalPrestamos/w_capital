@@ -1,205 +1,136 @@
-"use client";
+import { formatMoney } from "@/lib/format";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { sourceChannelLabels } from "@/lib/labels";
-import type { SourceChannel } from "@/lib/types";
+// Gráficas del rediseño: barras y filas CSS puras (animadas), sin recharts.
+// Server-safe: sin estado ni efectos; tooltips nativos vía title.
 
-// Paleta categórica validada (ver globals.css --chart-*)
-const C1 = "#f75b32"; // naranja marca
-const C2 = "#2e7db2"; // azul
-const GRID = "rgba(63, 66, 69, 0.08)";
-const INK_MUTED = "#6b6f73";
+const EXPECTED_COLOR = "#2E7DB2";
 
-const mxnShort = (n: number) =>
-  n >= 1_000_000
-    ? `$${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000
-      ? `$${(n / 1_000).toFixed(0)}k`
-      : `$${n}`;
-
-const mxnFull = (n: number) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
-
-const tooltipStyle = {
-  borderRadius: 10,
-  border: "1px solid rgba(63,66,69,0.12)",
-  background: "#fff",
-  fontSize: 12,
-  color: "#3f4245",
-};
-
-export function CollectionChart({
+export function CollectionBars({
   data,
 }: {
-  data: { week: string; esperado: number; cobrado: number }[];
+  data: { label: string; expected: number; collected: number }[];
 }) {
+  const max = Math.max(1, ...data.flatMap((d) => [d.expected, d.collected])) * 1.06;
+
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} barGap={2}>
-        <CartesianGrid stroke={GRID} vertical={false} />
-        <XAxis
-          dataKey="week"
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tickFormatter={mxnShort}
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-          width={52}
-        />
-        <Tooltip
-          formatter={(value, name) => [
-            mxnFull(Number(value)),
-            name === "esperado" ? "Esperado" : "Cobrado",
-          ]}
-          contentStyle={tooltipStyle}
-          cursor={{ fill: "rgba(63,66,69,0.05)" }}
-        />
-        <Legend
-          formatter={(value) => (
-            <span style={{ color: "#3f4245", fontSize: 12 }}>
-              {value === "esperado" ? "Esperado" : "Cobrado"}
-            </span>
-          )}
-        />
-        <Bar dataKey="esperado" fill={C2} radius={[4, 4, 0, 0]} maxBarSize={18} />
-        <Bar dataKey="cobrado" fill={C1} radius={[4, 4, 0, 0]} maxBarSize={18} />
-      </BarChart>
-    </ResponsiveContainer>
+    <>
+      <div className="flex items-center justify-end gap-3.5 text-xs text-ink-2">
+        <span className="inline-flex items-center gap-1.5">
+          <i
+            className="inline-block size-[9px] rounded-[3px]"
+            style={{ background: EXPECTED_COLOR }}
+          />
+          Esperado
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block size-[9px] rounded-[3px] bg-brand" />
+          Cobrado
+        </span>
+      </div>
+      <div className="mt-4 flex h-[210px] items-end gap-[18px]">
+        {data.map((w, i) => (
+          <div
+            key={w.label}
+            className="flex h-full flex-1 flex-col items-center gap-2.5"
+          >
+            <div className="flex w-full flex-1 items-end justify-center gap-[5px]">
+              <div
+                title={`Esperado ${formatMoney(w.expected)}`}
+                className="w-5 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] opacity-85"
+                style={{
+                  height: `${(w.expected / max) * 100}%`,
+                  background: EXPECTED_COLOR,
+                  animationDelay: `${i * 0.06}s`,
+                }}
+              />
+              <div
+                title={`Cobrado ${formatMoney(w.collected)}`}
+                className="w-5 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] bg-brand"
+                style={{
+                  height: `${(w.collected / max) * 100}%`,
+                  animationDelay: `${i * 0.06 + 0.08}s`,
+                }}
+              />
+            </div>
+            <span className="font-mono text-[11px] text-ink-3">{w.label}</span>
+          </div>
+        ))}
+        {data.length === 0 && (
+          <p className="w-full self-center text-center text-sm text-ink-3">
+            Aún no hay semanas registradas.
+          </p>
+        )}
+      </div>
+    </>
   );
 }
 
-export function DisbursedChart({
+export function FunnelRows({
   data,
 }: {
-  data: { month: string; monto: number; prestamos: number }[];
+  data: { label: string; value: number }[];
 }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data}>
-        <CartesianGrid stroke={GRID} vertical={false} />
-        <XAxis
-          dataKey="month"
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tickFormatter={mxnShort}
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-          width={52}
-        />
-        <Tooltip
-          formatter={(value, name) =>
-            name === "monto"
-              ? [mxnFull(Number(value)), "Desembolsado"]
-              : [String(value), "Préstamos"]
-          }
-          contentStyle={tooltipStyle}
-          cursor={{ fill: "rgba(63,66,69,0.05)" }}
-        />
-        <Bar dataKey="monto" fill={C1} radius={[4, 4, 0, 0]} maxBarSize={28} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col gap-3.5">
+      {data.map((f, i) => (
+        <div key={f.label}>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <span className="text-[13px] text-ink-2">{f.label}</span>
+            <span className="font-mono text-[13px] font-medium">{f.value}</span>
+          </div>
+          <div className="h-[9px] overflow-hidden rounded-full bg-line-2">
+            <div
+              className="h-full origin-left animate-grow-row rounded-full bg-brand"
+              style={{
+                width: `${(f.value / max) * 100}%`,
+                opacity: 1 - i * 0.13,
+                animationDelay: `${i * 0.07}s`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
-export function FunnelChart({ data }: { data: { etapa: string; total: number }[] }) {
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 32 }}>
-        <CartesianGrid stroke={GRID} horizontal={false} />
-        <XAxis
-          type="number"
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-          allowDecimals={false}
-        />
-        <YAxis
-          type="category"
-          dataKey="etapa"
-          tick={{ fontSize: 12, fill: "#3f4245" }}
-          axisLine={false}
-          tickLine={false}
-          width={104}
-        />
-        <Tooltip
-          formatter={(value) => [String(value), "Total"]}
-          contentStyle={tooltipStyle}
-          cursor={{ fill: "rgba(63,66,69,0.05)" }}
-        />
-        <Bar
-          dataKey="total"
-          fill={C1}
-          radius={[0, 4, 4, 0]}
-          maxBarSize={22}
-          label={{ position: "right", fontSize: 12, fill: "#3f4245" }}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-const CHANNEL_COLORS: string[] = ["#f75b32", "#2e7db2", "#2e9e63", "#8b5cc7", "#b87400"];
-
-export function ChannelChart({ data }: { data: { canal: string; total: number }[] }) {
-  const rows = data.map((d) => ({
-    ...d,
-    label:
-      sourceChannelLabels[d.canal as SourceChannel] ?? d.canal,
-  }));
+export function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const pad = span * 0.12;
+  const coords = points.map((p, i) => {
+    const x = (i / (points.length - 1)) * 100;
+    const y = 100 - ((p - (min - pad)) / (span + pad * 2)) * 100;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 32 }}>
-        <CartesianGrid stroke={GRID} horizontal={false} />
-        <XAxis
-          type="number"
-          tick={{ fontSize: 11, fill: INK_MUTED }}
-          axisLine={false}
-          tickLine={false}
-          allowDecimals={false}
-        />
-        <YAxis
-          type="category"
-          dataKey="label"
-          tick={{ fontSize: 12, fill: "#3f4245" }}
-          axisLine={false}
-          tickLine={false}
-          width={124}
-        />
-        <Tooltip
-          formatter={(value) => [String(value), "Contactos"]}
-          contentStyle={tooltipStyle}
-          cursor={{ fill: "rgba(63,66,69,0.05)" }}
-        />
-        <Bar
-          dataKey="total"
-          radius={[0, 4, 4, 0]}
-          maxBarSize={22}
-          label={{ position: "right", fontSize: 12, fill: "#3f4245" }}
-        >
-          {rows.map((row, i) => (
-            <Cell key={row.canal} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className="block h-24 w-full overflow-visible"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,100 ${coords.join(" ")} 100,100`} fill="url(#sparkFill)" />
+      <polyline
+        points={coords.join(" ")}
+        fill="none"
+        stroke="var(--brand)"
+        strokeWidth="2"
+        vectorEffect="non-scaling-stroke"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
