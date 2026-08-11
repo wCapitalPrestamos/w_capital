@@ -62,6 +62,16 @@ export const borrowerTypeLabels: Record<"personal" | "business", string> = {
   business: "Empresa / negocio",
 };
 
+export const collateralTypeLabels: Record<
+  "property" | "car" | "machinery" | "other",
+  string
+> = {
+  property: "Propiedad en Hermosillo (casa o terreno)",
+  car: "Factura de automóvil (2010 en adelante)",
+  machinery: "Maquinaria o equipo",
+  other: "Otra garantía",
+};
+
 export const docTypeLabels: Record<DocType, string> = {
   credit_application: "Solicitud de crédito",
   bureau_authorization: "Autorización de buró",

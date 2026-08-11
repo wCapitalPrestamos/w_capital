@@ -37,7 +37,7 @@ export type ApplicationStatus =
   | "rejected"
   | "disbursed"
   | "cancelled";
-export type CollateralType = "property" | "car";
+export type CollateralType = "property" | "car" | "machinery" | "other";
 export type BorrowerType = "personal" | "business";
 export type DocType =
   | "credit_application"
