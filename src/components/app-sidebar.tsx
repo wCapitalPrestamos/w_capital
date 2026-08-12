@@ -178,7 +178,7 @@ export function AppSidebar({
               }
             />
           )}
-          <DropdownMenuItem onSelect={() => signOut()}>
+          <DropdownMenuItem onClick={() => signOut()}>
             <LogOut className="size-4" />
             Cerrar sesión
           </DropdownMenuItem>

@@ -1,14 +1,22 @@
 import { z } from "zod";
+import { findOrCreateContact } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUploadToken } from "@/lib/upload-tokens";
 
 // n8n → CRM: el bot pide una liga del portal de documentos para un hilo.
-// Si el contacto no tiene solicitud abierta, se crea una en borrador.
+// Si el contacto no existe se crea (el bot puede pedir la liga antes de
+// reportar el mensaje entrante). Si no tiene solicitud abierta, se crea una.
 
 const bodySchema = z.object({
   channel: z.enum(["whatsapp", "messenger"]),
   external_thread_id: z.string().min(1),
+  // El cliente puede haber dado estos datos de una vez en el mismo mensaje;
+  // si no, se quedan en null y el portal / el equipo los completa después.
+  name: z.string().trim().min(1).nullish(),
+  requested_amount: z.number().positive().nullish(),
+  is_business: z.boolean().nullish(),
+  business_name: z.string().trim().min(1).nullish(),
 });
 
 const OPEN_STATUSES = ["draft", "docs_pending", "under_review"];
@@ -28,17 +36,13 @@ export async function POST(request: Request) {
   }
 
   const body = parsed.data;
-  const idColumn = body.channel === "whatsapp" ? "wa_id" : "messenger_psid";
 
-  const { data: contact } = await db
-    .from("contacts")
-    .select("id")
-    .eq(idColumn, body.external_thread_id)
-    .maybeSingle();
-
-  if (!contact) {
-    return Response.json({ ok: false, error: "contact not found" }, { status: 404 });
-  }
+  const contact = await findOrCreateContact(
+    db,
+    body.channel,
+    body.external_thread_id,
+    body.name ?? undefined,
+  );
 
   // Solicitud abierta más reciente, o una nueva en docs_pending
   const { data: existing } = await db
@@ -54,7 +58,13 @@ export async function POST(request: Request) {
   if (!applicationId) {
     const { data: created, error } = await db
       .from("loan_applications")
-      .insert({ contact_id: contact.id, status: "docs_pending" })
+      .insert({
+        contact_id: contact.id,
+        status: "docs_pending",
+        requested_amount: body.requested_amount ?? null,
+        borrower_type: body.is_business ? "business" : "personal",
+        business_name: body.is_business ? (body.business_name ?? null) : null,
+      })
       .select("id")
       .single();
     if (error) {

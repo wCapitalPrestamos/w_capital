@@ -1,29 +1,54 @@
 /**
  * Seed de DESARROLLO — crea usuarios y datos de ejemplo en el Supabase local.
- * Uso:  node scripts/seed-dev.ts   (Node 23+, lee .env.local)
+ * Uso:  npm run seed   (lee .env.local o .env)
  * Idempotente a nivel práctico: usa upserts y busca por claves naturales.
  */
 import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { buildSchedule, addDays } from "../src/lib/loans/amortization.ts";
 
-// Carga .env.local (sin dependencia de dotenv)
-for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split("\n")) {
-  const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+const envFile = existsSync(new URL("../.env.local", import.meta.url))
+  ? new URL("../.env.local", import.meta.url)
+  : new URL("../.env", import.meta.url);
+
+const fileEnv: Record<string, string> = {};
+
+// Carga .env.local o .env (sin dependencia de dotenv)
+for (const line of readFileSync(envFile, "utf8").split("\n")) {
+  const cleaned = line.replace(/^\uFEFF/, "").trim();
+  if (!cleaned || cleaned.startsWith("#") || !cleaned.includes("=")) continue;
+  const equalsIndex = cleaned.indexOf("=");
+  const key = cleaned.slice(0, equalsIndex).trim();
+  const value = cleaned.slice(equalsIndex + 1).trim();
+  fileEnv[key] = value;
+  if (!process.env[key] || process.env[key] === "") process.env[key] = value;
 }
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const url = fileEnv.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = fileEnv.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 const db = createClient(url, serviceKey, { auth: { persistSession: false } });
 
 const PASSWORD = "wcapital123";
 
 async function ensureUser(email: string, fullName: string, role: string) {
+  const upsertProfile = async (id: string) => {
+    const { error } = await db.from("profiles").upsert(
+      {
+        id,
+        full_name: fullName,
+        role,
+        active: true,
+      },
+      { onConflict: "id" },
+    );
+    if (error) throw error;
+  };
+
   const { data: list } = await db.auth.admin.listUsers();
   const existing = list?.users.find((u) => u.email === email);
   if (existing) {
-    await db.from("profiles").update({ full_name: fullName, role }).eq("id", existing.id);
+    await upsertProfile(existing.id);
     return existing.id;
   }
   const { data, error } = await db.auth.admin.createUser({
@@ -33,8 +58,8 @@ async function ensureUser(email: string, fullName: string, role: string) {
     user_metadata: { full_name: fullName, role },
   });
   if (error) throw error;
-  // El trigger crea el perfil; forzamos rol por si acaso
-  await db.from("profiles").update({ full_name: fullName, role }).eq("id", data.user.id);
+  // El trigger suele crearlo; upsert garantiza consistencia incluso si faltaba el perfil.
+  await upsertProfile(data.user.id);
   return data.user.id;
 }
 

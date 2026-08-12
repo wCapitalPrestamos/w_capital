@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, Clock3, RefreshCcw, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { docTypeLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/client";
 import type { DocType, DocumentRow } from "@/lib/types";
@@ -39,7 +40,37 @@ export function PortalUploader({
   const [documents, setDocuments] = useState(initialDocuments);
   const [busyType, setBusyType] = useState<DocType | null>(null);
   const [pickingType, setPickingType] = useState<DocType | null>(null);
+  const [name, setName] = useState(contactName);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveName = async () => {
+    const fullName = nameDraft.trim();
+    if (fullName.length < 2) {
+      toast.error("Escribe tu nombre completo.");
+      return;
+    }
+    setSavingName(true);
+    try {
+      const res = await fetch("/api/portal/set-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: rawToken, full_name: fullName }),
+      }).then((r) => r.json());
+      if (!res.ok) {
+        toast.error(
+          res.error === "token_invalid"
+            ? "La liga venció. Pide una nueva por WhatsApp."
+            : "No se pudo guardar tu nombre. Intenta de nuevo.",
+        );
+        return;
+      }
+      setName(fullName);
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const uploadedCount = requiredDocs.filter(
     (t) => slotState(documents.filter((d) => d.doc_type === t)).kind !== "missing",
@@ -168,12 +199,28 @@ export function PortalUploader({
 
       <div className="rounded-2xl border bg-card p-5 shadow-sm">
         <h1 className="text-lg font-semibold">
-          {contactName ? `Hola, ${contactName.split(" ")[0]} 👋` : "Hola 👋"}
+          {name ? `Hola, ${name.split(" ")[0]} 👋` : "Hola 👋"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Sube una foto clara o PDF de cada documento para avanzar con tu préstamo.
           Puedes tomar la foto directamente con tu celular.
         </p>
+        {!name && (
+          <div className="mt-3 flex gap-2">
+            <Input
+              placeholder="Tu nombre completo"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveName();
+              }}
+              disabled={savingName}
+            />
+            <Button onClick={handleSaveName} disabled={savingName}>
+              {savingName ? "Guardando…" : "Guardar"}
+            </Button>
+          </div>
+        )}
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all"

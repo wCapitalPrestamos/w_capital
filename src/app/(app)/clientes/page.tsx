@@ -1,4 +1,6 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { ClickableRow } from "@/components/contacts/clickable-row";
 import { NewContactDialog } from "@/components/contacts/new-contact-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Chip, type ChipTone } from "@/components/status-badge";
@@ -156,7 +158,8 @@ export default async function ClientesPage({
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Canal</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="pr-5 text-right">Registro</TableHead>
+                <TableHead className="text-right">Registro</TableHead>
+                <TableHead className="w-10 pr-5" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,7 +173,7 @@ export default async function ClientesPage({
                     .join("")
                     .toUpperCase() || "?";
                 return (
-                  <TableRow key={c.id}>
+                  <ClickableRow key={c.id} href={`/clientes/${c.id}`} className="group">
                     <TableCell className="pl-5">
                       <div className="flex items-center gap-3">
                         <span className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-[11px] bg-brand-soft text-xs font-semibold text-brand-ink">
@@ -200,15 +203,18 @@ export default async function ClientesPage({
                     <TableCell>
                       {s && <Chip tone={s.tone}>{s.label}</Chip>}
                     </TableCell>
-                    <TableCell className="pr-5 text-right text-[13px] text-ink-3">
+                    <TableCell className="text-right text-[13px] text-ink-3">
                       {formatDate(c.created_at)}
                     </TableCell>
-                  </TableRow>
+                    <TableCell className="pr-5">
+                      <ChevronRight className="size-4 text-ink-3 transition-colors group-hover:text-brand" />
+                    </TableCell>
+                  </ClickableRow>
                 );
               })}
               {visible.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-ink-3">
+                  <TableCell colSpan={6} className="py-10 text-center text-ink-3">
                     {query
                       ? "Sin resultados para tu búsqueda."
                       : "Aún no hay clientes en este filtro."}
