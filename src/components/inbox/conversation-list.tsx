@@ -87,7 +87,7 @@ export function ConversationList({
   }, [conversations, tab, profileId, search]);
 
   return (
-    <aside className="flex h-full w-[280px] shrink-0 flex-col border-r border-line-2 bg-surface xl:w-[326px]">
+    <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-r border-line-2 bg-surface xl:w-[326px]">
       <div className="flex flex-col gap-2.5 border-b border-line-2 p-4 pb-3.5">
         <div className="flex h-[34px] items-center gap-2 rounded-[10px] border border-line-2 bg-surface-2 px-[11px] text-ink-3">
           <Search className="size-[15px] shrink-0" strokeWidth={1.7} />
@@ -117,7 +117,7 @@ export function ConversationList({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
         {visible.length === 0 && (
           <p className="p-6 text-center text-sm text-ink-3">
             No hay conversaciones aquí.
@@ -175,6 +175,19 @@ export function ConversationList({
                   >
                     {c.status === "bot" ? "Bot" : "Humano"}
                   </span>
+                  {c.status === "human" && c.human_since && (
+                    <span
+                      className={cn(
+                        "text-[10.5px] font-medium",
+                        Date.now() - new Date(c.human_since).getTime() >
+                          3600_000
+                          ? "text-warn"
+                          : "text-ink-3",
+                      )}
+                    >
+                      tomada {formatRelativeTime(c.human_since)}
+                    </span>
+                  )}
                   {c.needs_human && (
                     <span className="inline-flex h-[19px] items-center gap-1 rounded-full bg-warn-soft px-2 text-[10.5px] font-semibold text-warn">
                       <AlertCircle className="size-[11px]" strokeWidth={2} />

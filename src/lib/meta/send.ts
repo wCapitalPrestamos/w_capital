@@ -108,6 +108,27 @@ export async function sendWhatsAppTemplate(
   };
 }
 
+// El webhook de Messenger no manda el nombre del cliente (a diferencia de
+// WhatsApp) — hay que pedirlo aparte con el token de la página.
+export async function getMessengerProfileName(
+  psid: string,
+): Promise<string | null> {
+  const token = process.env.MESSENGER_PAGE_TOKEN;
+  if (!token) return null;
+
+  try {
+    const res = await fetch(
+      `${GRAPH}/${psid}?fields=first_name,last_name&access_token=${token}`,
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    const name = [json.first_name, json.last_name].filter(Boolean).join(" ");
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMessengerText(
   psid: string,
   text: string,

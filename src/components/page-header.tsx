@@ -16,7 +16,7 @@ export function PageHeader({
   const eyebrow = crumb ?? description;
 
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line-2 bg-background px-8 py-[18px]">
+    <header suppressHydrationWarning className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line-2 bg-background px-8 py-4.5">
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <p className="mb-0.5 text-[11px] tracking-[.09em] uppercase text-ink-3">

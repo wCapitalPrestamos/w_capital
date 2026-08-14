@@ -22,15 +22,17 @@ import {
 import { toast } from "sonner";
 import {
   markConversationRead,
+  reassignConversation,
   resolveNeedsHuman,
   returnToBot,
   sendMessage,
   takeConversation,
 } from "@/actions/inbox";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
+import { ReassignSelect } from "@/components/reassign-select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatRelativeTime } from "@/lib/format";
 import { channelLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/client";
 import type { Contact, Conversation, Message, Profile } from "@/lib/types";
@@ -56,12 +58,14 @@ export function Thread({
   initialMessages,
   profile,
   profileNames,
+  assignableProfiles,
 }: {
   conversation: Conversation;
   contact: Contact;
   initialMessages: Message[];
   profile: Profile;
   profileNames: Record<string, string>;
+  assignableProfiles: { id: string; full_name: string }[];
 }) {
   const [conversation, setConversation] = useState(initialConversation);
   const [messages, setMessages] = useState(initialMessages);
@@ -180,11 +184,13 @@ export function Thread({
 
   const name = contact.full_name || contact.phone || "Sin nombre";
   const isBotStatus = conversation.status === "bot";
+  const canReassign =
+    profile.role === "admin" || conversation.assigned_to === profile.id;
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col bg-background">
+    <div className="grid h-full min-h-0 min-w-0 flex-1 grid-rows-[auto_1fr_auto] overflow-hidden bg-background">
       {/* Encabezado */}
-      <header className="flex items-center justify-between gap-3.5 border-b border-line-2 bg-surface px-6 py-3.5">
+      <header className="flex shrink-0 items-center justify-between gap-3.5 border-b border-line-2 bg-surface px-6 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex size-[38px] shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-semibold text-brand-ink">
             {name.slice(0, 1).toUpperCase()}
@@ -205,25 +211,41 @@ export function Thread({
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
-          <span
-            className={cn(
-              "inline-flex h-[26px] items-center gap-1.5 rounded-full px-[11px] text-[11.5px] font-semibold",
-              isBotStatus ? "bg-line-2 text-ink-2" : "bg-ok-soft text-ok",
-            )}
-          >
-            {isBotStatus ? (
-              <>
-                <Bot className="size-3.5" /> Bot activo
-              </>
-            ) : (
-              <>
-                <User className="size-3.5" />
-                {conversation.assigned_to
-                  ? (profileNames[conversation.assigned_to] ?? "Asignada")
-                  : "Humano"}
-              </>
-            )}
-          </span>
+          {isBotStatus ? (
+            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-line-2 px-[11px] text-[11.5px] font-semibold text-ink-2">
+              <Bot className="size-3.5" /> Bot activo
+            </span>
+          ) : canReassign ? (
+            <ReassignSelect
+              value={conversation.assigned_to}
+              options={assignableProfiles}
+              placeholder="Reasignar"
+              className="h-[26px] rounded-full border-transparent bg-ok-soft px-[11px] py-0 text-[11.5px] font-semibold text-ok data-placeholder:text-ok"
+              onAssign={(profileId) =>
+                reassignConversation(conversation.id, profileId)
+              }
+            />
+          ) : (
+            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-ok-soft px-[11px] text-[11.5px] font-semibold text-ok">
+              <User className="size-3.5" />
+              {conversation.assigned_to
+                ? (profileNames[conversation.assigned_to] ?? "Asignada")
+                : "Humano"}
+            </span>
+          )}
+          {!isBotStatus && conversation.human_since && (
+            <span
+              className={cn(
+                "text-[11.5px] font-medium",
+                now > 0 &&
+                  now - new Date(conversation.human_since).getTime() > 3600_000
+                  ? "text-warn"
+                  : "text-ink-3",
+              )}
+            >
+              tomada {formatRelativeTime(conversation.human_since)}
+            </span>
+          )}
           {conversation.needs_human && (
             <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-warn-soft px-[11px] text-[11.5px] font-semibold text-warn">
               <AlertCircle className="size-3.5" />
@@ -256,7 +278,7 @@ export function Thread({
       </header>
 
       {/* Mensajes */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-[22px]">
+      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]">
         {messages.map((m) => (
           <MessageBubble key={m.id} message={m} profileNames={profileNames} />
         ))}
@@ -264,8 +286,14 @@ export function Thread({
       </div>
 
       {/* Compositor */}
-      <footer className="border-t border-line-2 bg-surface px-6 pt-3.5 pb-[18px]">
-        {outsideWindow && (
+      <footer className="shrink-0 border-t border-line-2 bg-surface px-6 pt-3.5 pb-[18px]">
+        {isBotStatus && (
+          <div className="mb-[11px] flex items-center gap-2.5 rounded-xl bg-line-2 px-[13px] py-2.5 text-xs leading-[1.45] text-ink-2">
+            <Bot className="size-[15px] shrink-0" />
+            El bot está activo en esta conversación. Dale "Atender" para tomarla y poder responder.
+          </div>
+        )}
+        {!isBotStatus && outsideWindow && (
           <div className="mb-[11px] flex items-center gap-2.5 rounded-xl bg-warn-soft px-[13px] py-2.5 text-xs leading-[1.45] text-warn">
             <Clock className="size-[15px] shrink-0" />
             {conversation.channel === "whatsapp"
@@ -284,18 +312,20 @@ export function Thread({
               }
             }}
             placeholder={
-              outsideWindow
-                ? "Fuera de la ventana de 24 horas"
-                : `Responder a ${name}…`
+              isBotStatus
+                ? "El bot está contestando esta conversación"
+                : outsideWindow
+                  ? "Fuera de la ventana de 24 horas"
+                  : `Responder a ${name}…`
             }
-            disabled={outsideWindow || sending}
+            disabled={isBotStatus || outsideWindow || sending}
             className="max-h-36 min-h-11 flex-1 resize-none rounded-[14px]"
             rows={1}
           />
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!draft.trim() || outsideWindow || sending}
+            disabled={!draft.trim() || isBotStatus || outsideWindow || sending}
             aria-label="Enviar"
             className="size-11 rounded-[14px]"
           >

@@ -38,8 +38,8 @@ export function HeaderSearch() {
   }, [value, onClientes]);
 
   return (
-    <div className="hidden h-9 min-w-[230px] items-center gap-2 rounded-[11px] border border-line bg-surface px-3 text-ink-3 shadow-card transition-shadow hover:shadow-lifted md:flex">
-      <Search className="size-[15px] shrink-0" strokeWidth={1.7} />
+    <div suppressHydrationWarning className="hidden h-9 min-w-57.5 items-center gap-2 rounded-[11px] border border-line bg-surface px-3 text-ink-3 shadow-card transition-shadow hover:shadow-lifted md:flex">
+      <Search className="size-3.75 shrink-0" strokeWidth={1.7} />
       <input
         ref={inputRef}
         value={value}

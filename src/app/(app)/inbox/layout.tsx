@@ -21,14 +21,19 @@ export default async function InboxLayout({
     .limit(100);
 
   return (
-    <div className="flex h-screen min-w-0 flex-1 flex-col">
+    <div
+      suppressHydrationWarning
+      className="fixed inset-y-0 right-0 left-[252px] z-10 flex flex-col overflow-hidden bg-background"
+    >
       <PageHeader crumb="Conversaciones" title="Bandeja" />
-      <div className="flex min-h-0 min-w-0 flex-1 animate-rise-in">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden animate-rise-in">
         <ConversationList
           initialConversations={conversations ?? []}
           profileId={profile.id}
         />
-        <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {children}
+        </div>
       </div>
     </div>
   );

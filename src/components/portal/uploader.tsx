@@ -185,7 +185,7 @@ export function PortalUploader({
   };
 
   return (
-    <div className="space-y-4">
+    <div suppressHydrationWarning className="space-y-4">
       <input
         ref={fileInputRef}
         type="file"

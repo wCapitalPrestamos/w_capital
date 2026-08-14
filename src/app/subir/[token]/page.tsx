@@ -73,20 +73,23 @@ export default async function PortalPage({ params }: PageProps<"/subir/[token]">
 
 function PortalShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen flex-1 bg-background">
-      <header className="bg-primary px-4 py-5 text-primary-foreground">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground text-xl font-black italic text-primary">
+    <main suppressHydrationWarning className="min-h-screen flex-1 bg-background">
+      <header suppressHydrationWarning className="bg-primary px-4 py-5 text-primary-foreground">
+        <div suppressHydrationWarning className="mx-auto flex max-w-lg items-center gap-3">
+          <div
+            suppressHydrationWarning
+            className="flex size-10 items-center justify-center rounded-xl bg-primary-foreground text-xl font-black italic text-primary"
+          >
             W
           </div>
-          <div>
+          <div suppressHydrationWarning>
             <p className="font-semibold leading-tight">W Capital</p>
             <p className="text-xs opacity-90">Impulsemos el futuro</p>
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-lg p-4 pb-10">{children}</div>
-      <footer className="mx-auto max-w-lg px-4 pb-8 text-center text-[11px] leading-relaxed text-muted-foreground">
+      <div suppressHydrationWarning className="mx-auto max-w-lg p-4 pb-10">{children}</div>
+      <footer suppressHydrationWarning className="mx-auto max-w-lg px-4 pb-8 text-center text-[11px] leading-relaxed text-muted-foreground">
         Tus documentos se transmiten cifrados y solo los usa W Capital para evaluar
         tu solicitud de crédito, conforme a nuestro aviso de privacidad. Colosio 158
         local 6, Plaza Universidad, Col. Centenario, Hermosillo, Son.

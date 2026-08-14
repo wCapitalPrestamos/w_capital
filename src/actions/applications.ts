@@ -158,3 +158,24 @@ export async function updateApplicationDetails(
   revalidatePath(`/solicitudes/${applicationId}`);
   return { ok: true };
 }
+
+export async function reassignApplication(
+  applicationId: string,
+  field: "advisor_id" | "analyst_id",
+  profileId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireProfile();
+  if (profile.role !== "admin") {
+    return { ok: false, error: "Solo administración puede reasignar." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("loan_applications")
+    .update({ [field]: profileId })
+    .eq("id", applicationId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/solicitudes/${applicationId}`);
+  return { ok: true };
+}

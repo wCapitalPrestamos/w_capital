@@ -2,9 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();

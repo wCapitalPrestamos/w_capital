@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getMessengerProfileName } from "@/lib/meta/send";
 import type { Channel, Contact, Conversation } from "@/lib/types";
 
 // Upserts de contacto y conversación por identidad externa (wa_id / PSID).
@@ -22,8 +23,12 @@ export async function findOrCreateContact(
 
   if (existing) {
     // Completa nombre/teléfono si aún no los teníamos
+    let resolvedName = name;
+    if (!resolvedName && !existing.full_name && channel === "messenger") {
+      resolvedName = (await getMessengerProfileName(externalThreadId)) ?? undefined;
+    }
     const patch: Record<string, string> = {};
-    if (name && !existing.full_name) patch.full_name = name;
+    if (resolvedName && !existing.full_name) patch.full_name = resolvedName;
     if (phone && !existing.phone) patch.phone = phone;
     if (Object.keys(patch).length > 0) {
       await db.from("contacts").update(patch).eq("id", existing.id);
@@ -31,11 +36,18 @@ export async function findOrCreateContact(
     return { ...existing, ...patch } as Contact;
   }
 
+  // Messenger no manda el nombre del cliente en el webhook (a diferencia de
+  // WhatsApp) — se pide aparte con el token de la página al crear el contacto.
+  let resolvedName = name;
+  if (!resolvedName && channel === "messenger") {
+    resolvedName = (await getMessengerProfileName(externalThreadId)) ?? undefined;
+  }
+
   const { data: created, error } = await db
     .from("contacts")
     .insert({
       [idColumn]: externalThreadId,
-      full_name: name ?? "",
+      full_name: resolvedName ?? "",
       phone: phone ?? null,
       source_channel: channel,
     })
@@ -88,7 +100,7 @@ export async function applyBotAutoResume(
   ) {
     const { data } = await db
       .from("conversations")
-      .update({ status: "bot", bot_paused_until: null })
+      .update({ status: "bot", bot_paused_until: null, human_since: null })
       .eq("id", conversation.id)
       .select("*")
       .single();

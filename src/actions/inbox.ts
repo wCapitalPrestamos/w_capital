@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
+import { getHandoffPauseHours } from "@/lib/conversations";
 import {
   MetaSendError,
   sendMessengerText,
@@ -9,8 +10,6 @@ import {
 } from "@/lib/meta/send";
 import { createClient } from "@/lib/supabase/server";
 import type { Conversation } from "@/lib/types";
-
-const PAUSE_HOURS = 4;
 
 export interface SendMessageResult {
   ok: boolean;
@@ -59,11 +58,13 @@ export async function sendMessage(
     }
 
     // Al responder un humano, el bot se pausa y la conversación queda asignada
+    const pauseHours = await getHandoffPauseHours(supabase);
     await supabase
       .from("conversations")
       .update({
         status: "human",
-        bot_paused_until: new Date(Date.now() + PAUSE_HOURS * 3600_000).toISOString(),
+        bot_paused_until: new Date(Date.now() + pauseHours * 3600_000).toISOString(),
+        human_since: conversation.status === "human" ? conversation.human_since : new Date().toISOString(),
         assigned_to: conversation.assigned_to ?? profile.id,
         unread_count: 0,
       })
@@ -102,7 +103,7 @@ export async function returnToBot(conversationId: string) {
   const supabase = await createClient();
   await supabase
     .from("conversations")
-    .update({ status: "bot", bot_paused_until: null })
+    .update({ status: "bot", bot_paused_until: null, human_since: null })
     .eq("id", conversationId);
   revalidatePath(`/inbox/${conversationId}`);
 }
@@ -110,15 +111,56 @@ export async function returnToBot(conversationId: string) {
 export async function takeConversation(conversationId: string) {
   const profile = await requireProfile();
   const supabase = await createClient();
+  const pauseHours = await getHandoffPauseHours(supabase);
   await supabase
     .from("conversations")
     .update({
       status: "human",
-      bot_paused_until: new Date(Date.now() + PAUSE_HOURS * 3600_000).toISOString(),
+      bot_paused_until: new Date(Date.now() + pauseHours * 3600_000).toISOString(),
+      human_since: new Date().toISOString(),
       assigned_to: profile.id,
     })
     .eq("id", conversationId);
   revalidatePath(`/inbox/${conversationId}`);
+}
+
+export async function reassignConversation(
+  conversationId: string,
+  profileId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("assigned_to")
+    .eq("id", conversationId)
+    .single<Pick<Conversation, "assigned_to">>();
+
+  if (!conversation) return { ok: false, error: "Conversación no encontrada." };
+
+  const canReassign =
+    profile.role === "admin" || conversation.assigned_to === profile.id;
+  if (!canReassign) {
+    return {
+      ok: false,
+      error: "Solo administración o quien la tiene asignada puede reasignarla.",
+    };
+  }
+
+  const pauseHours = await getHandoffPauseHours(supabase);
+  const { error } = await supabase
+    .from("conversations")
+    .update({
+      assigned_to: profileId,
+      status: "human",
+      bot_paused_until: new Date(Date.now() + pauseHours * 3600_000).toISOString(),
+    })
+    .eq("id", conversationId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/inbox/${conversationId}`);
+  return { ok: true };
 }
 
 export async function resolveNeedsHuman(conversationId: string) {

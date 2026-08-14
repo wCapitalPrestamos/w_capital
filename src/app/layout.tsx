@@ -37,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${instrumentSans.variable} ${instrumentSerif.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body suppressHydrationWarning className="flex min-h-full flex-col">
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

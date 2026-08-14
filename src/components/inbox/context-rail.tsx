@@ -33,7 +33,7 @@ export function ContextRail({
         : "warn";
 
   return (
-    <aside className="hidden w-[272px] shrink-0 flex-col gap-3.5 overflow-y-auto border-l border-line-2 bg-surface-2 p-5 xl:flex">
+    <aside className="hidden w-[272px] shrink-0 flex-col gap-3.5 overflow-y-auto scrollbar-hidden border-l border-line-2 bg-surface-2 p-5 xl:flex">
       <p className="text-[10.5px] font-semibold tracking-[.1em] uppercase text-ink-3">
         Contexto del cliente
       </p>

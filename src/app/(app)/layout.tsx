@@ -48,9 +48,9 @@ export default async function AppLayout({
   };
 
   return (
-    <div className="flex min-h-screen flex-1 text-[14px]">
+    <div suppressHydrationWarning className="flex min-h-screen flex-1 text-[14px]">
       <AppSidebar profile={profile} counts={counts} today={todayStats} />
-      <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
     </div>
   );
 }

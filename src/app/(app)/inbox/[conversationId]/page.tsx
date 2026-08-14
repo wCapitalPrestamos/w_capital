@@ -36,7 +36,7 @@ export default async function ConversationPage({
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true })
         .limit(500),
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profiles").select("id, full_name, role"),
       supabase
         .from("loan_applications")
         .select("*")
@@ -62,11 +62,12 @@ export default async function ConversationPage({
     docsPending = (docs ?? []).filter((d) => d.review_status === "pending").length;
   }
 
+  const allProfiles = (profiles ?? []) as Pick<Profile, "id" | "full_name" | "role">[];
   const profileNames = Object.fromEntries(
-    ((profiles ?? []) as Pick<Profile, "id" | "full_name">[]).map((p) => [
-      p.id,
-      p.full_name,
-    ]),
+    allProfiles.map((p) => [p.id, p.full_name]),
+  );
+  const assignableProfiles = allProfiles.filter(
+    (p) => p.role === "advisor" || p.role === "admin",
   );
 
   return (
@@ -78,6 +79,7 @@ export default async function ConversationPage({
         initialMessages={(messages ?? []) as Message[]}
         profile={profile}
         profileNames={profileNames}
+        assignableProfiles={assignableProfiles}
       />
       <ContextRail
         contact={conversation.contact}

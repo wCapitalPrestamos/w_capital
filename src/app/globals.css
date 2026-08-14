@@ -205,3 +205,12 @@
     @apply font-sans antialiased;
   }
 }
+
+/* Oculta la barra de scroll visualmente sin quitar la posibilidad de scrollear */
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/applications/application-actions";
+import { ApplicationAssignments } from "@/components/applications/application-assignments";
 import { DocumentsChecklist } from "@/components/applications/documents-checklist";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationStatusBadge } from "@/components/status-badge";
@@ -52,15 +53,19 @@ export default async function SolicitudDetailPage({
         .select("*")
         .eq("application_id", id)
         .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, full_name"),
+      supabase.from("profiles").select("id, full_name, role"),
       supabase.from("loans").select("id, folio").eq("application_id", id).maybeSingle(),
     ]);
 
+  const allProfiles = (profiles ?? []) as Pick<Profile, "id" | "full_name" | "role">[];
   const profileNames = Object.fromEntries(
-    ((profiles ?? []) as Pick<Profile, "id" | "full_name">[]).map((p) => [
-      p.id,
-      p.full_name,
-    ]),
+    allProfiles.map((p) => [p.id, p.full_name]),
+  );
+  const advisorOptions = allProfiles.filter(
+    (p) => p.role === "advisor" || p.role === "admin",
+  );
+  const analystOptions = allProfiles.filter(
+    (p) => p.role === "analyst" || p.role === "admin",
   );
 
   return (
@@ -113,9 +118,15 @@ export default async function SolicitudDetailPage({
                 {app.collateral_type ? collateralTypeLabels[app.collateral_type] : "—"}
                 {app.collateral_description ? ` — ${app.collateral_description}` : ""}
               </Detail>
-              <Detail label="Asesora">
-                {app.advisor_id ? (profileNames[app.advisor_id] ?? "—") : "—"}
-              </Detail>
+              <ApplicationAssignments
+                applicationId={app.id}
+                role={profile.role}
+                advisorId={app.advisor_id}
+                analystId={app.analyst_id}
+                advisorOptions={advisorOptions}
+                analystOptions={analystOptions}
+                profileNames={profileNames}
+              />
               {app.rejection_reason && (
                 <Detail label="Motivo de rechazo">{app.rejection_reason}</Detail>
               )}

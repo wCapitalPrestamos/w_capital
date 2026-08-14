@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const { data: conversation } = await db
     .from("conversations")
-    .select("id, unread_count")
+    .select("id, unread_count, status")
     .eq("channel", body.channel)
     .eq("external_thread_id", body.external_thread_id)
     .maybeSingle();
@@ -62,6 +62,9 @@ export async function POST(request: Request) {
     pausedUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
     patch.status = "human";
     patch.bot_paused_until = pausedUntil;
+    if (conversation.status !== "human") {
+      patch.human_since = new Date().toISOString();
+    }
   }
 
   const { error } = await db

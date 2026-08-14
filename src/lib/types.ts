@@ -85,6 +85,7 @@ export interface Conversation {
   needs_human: boolean;
   assigned_to: string | null;
   bot_paused_until: string | null;
+  human_since: string | null;
   last_message_at: string;
   last_inbound_at: string | null;
   last_preview: string;
