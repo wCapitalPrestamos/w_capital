@@ -121,6 +121,16 @@ export async function takeConversation(conversationId: string) {
   revalidatePath(`/inbox/${conversationId}`);
 }
 
+export async function resolveNeedsHuman(conversationId: string) {
+  await requireProfile();
+  const supabase = await createClient();
+  await supabase
+    .from("conversations")
+    .update({ needs_human: false })
+    .eq("id", conversationId);
+  revalidatePath(`/inbox/${conversationId}`);
+}
+
 export async function closeConversation(conversationId: string) {
   await requireProfile();
   const supabase = await createClient();

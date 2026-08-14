@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
 import { formatRelativeTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -164,7 +164,7 @@ export function ConversationList({
                     </span>
                   )}
                 </div>
-                <div className="mt-[7px]">
+                <div className="mt-[7px] flex items-center gap-1.5">
                   <span
                     className={cn(
                       "inline-flex h-[19px] items-center rounded-full px-2 text-[10.5px] font-semibold",
@@ -175,6 +175,12 @@ export function ConversationList({
                   >
                     {c.status === "bot" ? "Bot" : "Humano"}
                   </span>
+                  {c.needs_human && (
+                    <span className="inline-flex h-[19px] items-center gap-1 rounded-full bg-warn-soft px-2 text-[10.5px] font-semibold text-warn">
+                      <AlertCircle className="size-[11px]" strokeWidth={2} />
+                      Requiere atención
+                    </span>
+                  )}
                 </div>
               </div>
             </Link>

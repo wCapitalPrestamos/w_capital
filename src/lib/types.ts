@@ -82,6 +82,7 @@ export interface Conversation {
   channel: Channel;
   external_thread_id: string;
   status: ConversationStatus;
+  needs_human: boolean;
   assigned_to: string | null;
   bot_paused_until: string | null;
   last_message_at: string;

@@ -9,10 +9,20 @@ import {
   useTransition,
 } from "react";
 import Link from "next/link";
-import { Bot, Check, CheckCheck, Clock, Send, User, X } from "lucide-react";
+import {
+  AlertCircle,
+  Bot,
+  Check,
+  CheckCheck,
+  Clock,
+  Send,
+  User,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   markConversationRead,
+  resolveNeedsHuman,
   returnToBot,
   sendMessage,
   takeConversation,
@@ -214,6 +224,12 @@ export function Thread({
               </>
             )}
           </span>
+          {conversation.needs_human && (
+            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-warn-soft px-[11px] text-[11.5px] font-semibold text-warn">
+              <AlertCircle className="size-3.5" />
+              Requiere atención
+            </span>
+          )}
           {isBotStatus ? (
             <Button size="sm" onClick={() => takeConversation(conversation.id)}>
               Atender
@@ -225,6 +241,15 @@ export function Thread({
               onClick={() => returnToBot(conversation.id)}
             >
               Devolver al bot
+            </Button>
+          )}
+          {conversation.needs_human && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => resolveNeedsHuman(conversation.id)}
+            >
+              Marcar resuelto
             </Button>
           )}
         </div>

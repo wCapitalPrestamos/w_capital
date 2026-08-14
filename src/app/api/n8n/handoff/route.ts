@@ -3,8 +3,14 @@ import { getHandoffPauseHours } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// n8n → CRM: el bot escala la conversación a un humano
-// (pregunta fuera de alcance o el cliente pidió hablar con una asesora).
+// n8n → CRM: el bot marca la conversación para que un humano la revise.
+//
+// - "client_requested" / "other": el cliente pidió explícitamente hablar con
+//   alguien → se pausa el bot (status: "human") hasta que una asesora lo
+//   retome o pase el tiempo de auto-resume.
+// - "out_of_scope": el bot no supo responder algo puntual, pero el cliente no
+//   pidió un humano → solo se marca needs_human, el bot sigue contestando
+//   todo lo demás con normalidad.
 
 const bodySchema = z.object({
   channel: z.enum(["whatsapp", "messenger"]),
@@ -42,17 +48,25 @@ export async function POST(request: Request) {
     );
   }
 
-  const pauseHours = await getHandoffPauseHours(db);
-  const pausedUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
+  const shouldPause = body.reason !== "out_of_scope";
+
+  const patch: Record<string, unknown> = {
+    needs_human: true,
+    // Asegura que la conversación resalte en la bandeja
+    unread_count: Math.max(1, conversation.unread_count),
+  };
+
+  let pausedUntil: string | null = null;
+  if (shouldPause) {
+    const pauseHours = await getHandoffPauseHours(db);
+    pausedUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
+    patch.status = "human";
+    patch.bot_paused_until = pausedUntil;
+  }
 
   const { error } = await db
     .from("conversations")
-    .update({
-      status: "human",
-      bot_paused_until: pausedUntil,
-      // Asegura que la conversación resalte en la bandeja
-      unread_count: Math.max(1, conversation.unread_count),
-    })
+    .update(patch)
     .eq("id", conversation.id);
 
   if (error) {
@@ -65,5 +79,5 @@ export async function POST(request: Request) {
     processed: true,
   });
 
-  return Response.json({ ok: true, paused_until: pausedUntil });
+  return Response.json({ ok: true, paused: shouldPause, paused_until: pausedUntil });
 }
