@@ -122,14 +122,7 @@ export default function PrivacidadPage() {
             Usted tiene derecho a Acceder, Rectificar y Cancelar sus datos
             personales, así como a Oponerse al tratamiento de los mismos o a
             revocar el consentimiento que nos haya otorgado (derechos ARCO).
-            Para ejercerlos, puede escribirnos a{" "}
-            <a
-              href="mailto:ulises@wcapital.mx"
-              className="font-medium text-brand hover:underline"
-            >
-              ulises@wcapital.mx
-            </a>{" "}
-            o comunicarse al teléfono{" "}
+            Para ejercerlos, puede comunicarse al teléfono{" "}
             <a href="tel:+526622125007" className="font-medium text-brand hover:underline">
               662 212 5007
             </a>
@@ -162,14 +155,6 @@ export default function PrivacidadPage() {
             <br />
             Av. Luis Donaldo Colosio #158 Local 6, Plaza Universidad,
             Col. El Centenario, C.P. 83260, Hermosillo, Sonora, México
-            <br />
-            Correo:{" "}
-            <a
-              href="mailto:ulises@wcapital.mx"
-              className="font-medium text-brand hover:underline"
-            >
-              ulises@wcapital.mx
-            </a>
             <br />
             Teléfono:{" "}
             <a href="tel:+526622125007" className="font-medium text-brand hover:underline">
