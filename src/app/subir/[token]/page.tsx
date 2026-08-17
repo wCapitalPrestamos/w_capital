@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PortalUploader } from "@/components/portal/uploader";
 import { validatePortalToken } from "@/lib/portal-tokens";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -91,8 +92,15 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       <div suppressHydrationWarning className="mx-auto max-w-lg p-4 pb-10">{children}</div>
       <footer suppressHydrationWarning className="mx-auto max-w-lg px-4 pb-8 text-center text-[11px] leading-relaxed text-muted-foreground">
         Tus documentos se transmiten cifrados y solo los usa W Capital para evaluar
-        tu solicitud de crédito, conforme a nuestro aviso de privacidad. Colosio 158
-        local 6, Plaza Universidad, Col. Centenario, Hermosillo, Son.
+        tu solicitud de crédito, conforme a nuestro{" "}
+        <Link href="/privacidad" className="underline underline-offset-2 hover:text-foreground">
+          aviso de privacidad
+        </Link>{" "}
+        y{" "}
+        <Link href="/terminos" className="underline underline-offset-2 hover:text-foreground">
+          términos de servicio
+        </Link>
+        . Colosio 158 local 6, Plaza Universidad, Col. Centenario, Hermosillo, Son.
       </footer>
     </main>
   );
