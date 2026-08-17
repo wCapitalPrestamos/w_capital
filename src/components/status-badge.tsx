@@ -49,7 +49,7 @@ const applicationTones: Record<ApplicationStatus, ChipTone> = {
   under_review: "info",
   approved: "ok",
   rejected: "bad",
-  disbursed: "ok",
+  disbursed: "blue",
   cancelled: "neutral",
 };
 

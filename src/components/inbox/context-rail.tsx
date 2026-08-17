@@ -1,7 +1,7 @@
 import { CreateApplicationButton } from "@/components/applications/create-application-button";
-import { Chip, type ChipTone } from "@/components/status-badge";
+import { ApplicationStatusBadge, Chip } from "@/components/status-badge";
 import { formatDate, formatMoney } from "@/lib/format";
-import { applicationFolio, applicationStatusLabels } from "@/lib/labels";
+import { applicationFolio } from "@/lib/labels";
 import type { Contact, LoanApplication, LoanBalance } from "@/lib/types";
 
 // Rail derecho del inbox: contexto del cliente de la conversación activa
@@ -25,13 +25,6 @@ export function ContextRail({
     (l) => l.status === "overdue" || Number(l.days_late) > 0,
   );
 
-  const appTone: ChipTone =
-    application?.status === "approved"
-      ? "ok"
-      : application?.status === "under_review"
-        ? "info"
-        : "warn";
-
   return (
     <aside className="hidden w-[272px] shrink-0 flex-col gap-3.5 overflow-y-auto scrollbar-hidden border-l border-line-2 bg-surface-2 p-5 xl:flex">
       <p className="text-[10.5px] font-semibold tracking-[.1em] uppercase text-ink-3">
@@ -41,9 +34,7 @@ export function ContextRail({
       <RailCard
         label="Solicitud activa"
         chip={
-          application ? (
-            <Chip tone={appTone}>{applicationStatusLabels[application.status]}</Chip>
-          ) : null
+          application ? <ApplicationStatusBadge status={application.status} /> : null
         }
         value={
           application ? (
