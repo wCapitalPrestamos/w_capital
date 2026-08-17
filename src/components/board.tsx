@@ -1,9 +1,46 @@
+"use client";
+
+import type { ComponentProps } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // Piezas visuales compartidas de los tableros kanban (leads y solicitudes)
 
 export const boardCardClass =
   "rounded-2xl border border-line-2 bg-surface p-[15px_16px] shadow-card cursor-pointer transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-lifted";
+
+// Tarjeta clickeable con un destino propio (p. ej. la solicitud), que deja
+// pasar el clic a links/botones anidados dentro (p. ej. el nombre del
+// cliente, que navega a otro lado) en vez de robárselo.
+export function ClickableCard({
+  href,
+  className,
+  children,
+  ...props
+}: ComponentProps<"div"> & { href: string }) {
+  const router = useRouter();
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a, button")) return;
+        router.push(href);
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !(e.target as HTMLElement).closest("a, button")) {
+          e.preventDefault();
+          router.push(href);
+        }
+      }}
+      className={cn(className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function BoardColumn({
   label,

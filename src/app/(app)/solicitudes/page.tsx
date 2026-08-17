@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Store } from "lucide-react";
-import { BoardCardMeta, BoardColumn, boardCardClass } from "@/components/board";
+import { BoardCardMeta, BoardColumn, ClickableCard, boardCardClass } from "@/components/board";
 import { BoardZoom } from "@/components/board-zoom";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationStatusBadge } from "@/components/status-badge";
@@ -63,7 +63,7 @@ export default async function SolicitudesPage() {
                   const amount = app.approved_amount ?? app.requested_amount;
                   const weeks = app.approved_term_weeks ?? app.term_weeks;
                   return (
-                    <Link
+                    <ClickableCard
                       key={app.id}
                       href={`/solicitudes/${app.id}`}
                       className={boardCardClass}
@@ -74,9 +74,18 @@ export default async function SolicitudesPage() {
                         </span>
                         <ApplicationStatusBadge status={app.status} />
                       </div>
-                      <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
-                        {app.contact?.full_name || app.contact?.phone || "Sin nombre"}
-                      </p>
+                      {app.contact ? (
+                        <Link
+                          href={`/clientes/${app.contact.id}`}
+                          className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand hover:underline"
+                        >
+                          {app.contact.full_name || app.contact.phone || "Sin nombre"}
+                        </Link>
+                      ) : (
+                        <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
+                          Sin nombre
+                        </p>
+                      )}
                       <p className="mt-2.5 font-mono text-[15px] tracking-[-.02em]">
                         {amount ? formatMoney(amount) : "Monto por definir"}
                         {weeks ? ` · ${weeks} sem` : ""}
@@ -94,7 +103,7 @@ export default async function SolicitudesPage() {
                         }
                         right={formatRelativeTime(app.updated_at)}
                       />
-                    </Link>
+                    </ClickableCard>
                   );
                 })}
               </BoardColumn>
