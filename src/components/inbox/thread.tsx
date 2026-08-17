@@ -318,7 +318,7 @@ export function Thread({
           <DialogHeader>
             <DialogTitle>¿Cerrar esta conversación?</DialogTitle>
           </DialogHeader>
-          <p className="px-7 pt-[22px] text-sm text-muted-foreground">
+          <p className="px-7 py-7 text-sm text-muted-foreground">
             Se archiva fuera de la bandeja activa. Si {name} vuelve a escribir, se
             reabre sola automáticamente.
           </p>
