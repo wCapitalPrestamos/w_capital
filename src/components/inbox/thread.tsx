@@ -9,7 +9,9 @@ import {
   useTransition,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  Archive,
   AlertCircle,
   Bot,
   Check,
@@ -21,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  closeConversation,
   markConversationRead,
   reassignConversation,
   resolveNeedsHuman,
@@ -67,11 +70,21 @@ export function Thread({
   profileNames: Record<string, string>;
   assignableProfiles: { id: string; full_name: string }[];
 }) {
+  const router = useRouter();
   const [conversation, setConversation] = useState(initialConversation);
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
+  const [closing, startClosing] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = () => {
+    startClosing(async () => {
+      await closeConversation(conversation.id);
+      toast.success("Conversación cerrada.");
+      router.push("/inbox");
+    });
+  };
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -272,6 +285,18 @@ export function Thread({
               onClick={() => resolveNeedsHuman(conversation.id)}
             >
               Marcar resuelto
+            </Button>
+          )}
+          {conversation.status !== "closed" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-ink-3 hover:text-destructive"
+              onClick={handleClose}
+              disabled={closing}
+              title="Archiva la conversación fuera de la bandeja activa"
+            >
+              <Archive className="size-4" /> Cerrar
             </Button>
           )}
         </div>

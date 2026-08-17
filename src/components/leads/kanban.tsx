@@ -11,11 +11,21 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import { moveLead } from "@/actions/leads";
 import { BoardCardMeta, BoardColumn, boardCardClass } from "@/components/board";
 import { BoardZoom } from "@/components/board-zoom";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Chip, type ChipTone } from "@/components/status-badge";
+import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, formatRelativeTime } from "@/lib/format";
 import { leadStageLabels, sourceChannelLabels } from "@/lib/labels";
 import type { Lead, LeadStage, SourceChannel } from "@/lib/types";
@@ -66,6 +76,22 @@ export function LeadsKanban({ initialLeads }: { initialLeads: LeadWithContact[] 
     });
   };
 
+  const handleDiscard = (leadId: string, reason: string) => {
+    const previous = leads;
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, stage: "discarded" } : l)),
+    );
+
+    moveLead(leadId, "discarded", reason || undefined).then((result) => {
+      if (result.ok) {
+        toast.success("Lead descartado.");
+      } else {
+        setLeads(previous);
+        toast.error(result.error ?? "No se pudo descartar el lead.");
+      }
+    });
+  };
+
   return (
     <DndContext id="leads-board" sensors={sensors} onDragEnd={handleDragEnd}>
       <BoardZoom>
@@ -76,6 +102,7 @@ export function LeadsKanban({ initialLeads }: { initialLeads: LeadWithContact[] 
             tone={tone}
             dot={dot}
             leads={leads.filter((l) => l.stage === stage)}
+            onDiscard={handleDiscard}
           />
         ))}
       </BoardZoom>
@@ -88,11 +115,13 @@ function KanbanColumn({
   tone,
   dot,
   leads,
+  onDiscard,
 }: {
   stage: LeadStage;
   tone: ChipTone;
   dot: string;
   leads: LeadWithContact[];
+  onDiscard: (leadId: string, reason: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const sum = leads.reduce((a, l) => a + (l.interest_amount ?? 0), 0);
@@ -107,7 +136,7 @@ function KanbanColumn({
         highlight={isOver}
       >
         {leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} tone={tone} stage={stage} />
+          <LeadCard key={lead.id} lead={lead} tone={tone} stage={stage} onDiscard={onDiscard} />
         ))}
       </BoardColumn>
     </div>
@@ -118,14 +147,17 @@ function LeadCard({
   lead,
   tone,
   stage,
+  onDiscard,
 }: {
   lead: LeadWithContact;
   tone: ChipTone;
   stage: LeadStage;
+  onDiscard: (leadId: string, reason: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
   });
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   return (
     <div
@@ -149,7 +181,24 @@ function LeadCard({
             ? sourceChannelLabels[lead.contact.source_channel]
             : "Sin canal"}
         </span>
-        <Chip tone={tone}>{leadStageLabels[stage]}</Chip>
+        <div className="flex items-center gap-1.5">
+          <Chip tone={tone}>{leadStageLabels[stage]}</Chip>
+          {stage !== "discarded" && (
+            <button
+              type="button"
+              title="Descartar lead"
+              aria-label="Descartar lead"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDiscardOpen(true);
+              }}
+              className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-line-2 hover:text-destructive"
+            >
+              <Ban className="size-3.5" />
+            </button>
+          )}
+        </div>
       </div>
       <Link
         href={`/clientes/${lead.contact?.id ?? ""}?from=leads`}
@@ -166,6 +215,39 @@ function LeadCard({
         left="Interés declarado"
         right={formatRelativeTime(lead.updated_at)}
       />
+
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Descartar lead</DialogTitle>
+          </DialogHeader>
+          <form
+            action={(formData) => {
+              onDiscard(lead.id, String(formData.get("reason") ?? "").trim());
+              setDiscardOpen(false);
+            }}
+            className="grid gap-4 px-7 py-[22px]"
+          >
+            <p className="text-sm text-muted-foreground">
+              {lead.contact?.full_name || lead.contact?.phone || "Este lead"} ya no
+              seguirá en el tablero activo. Se puede regresar después arrastrándolo
+              desde la columna &quot;Descartado&quot;.
+            </p>
+            <div className="grid gap-2">
+              <Label htmlFor={`discard-reason-${lead.id}`}>Motivo (opcional)</Label>
+              <Textarea
+                id={`discard-reason-${lead.id}`}
+                name="reason"
+                rows={2}
+                placeholder="Ej. ya no contestó, ya no le interesa…"
+              />
+            </div>
+            <Button type="submit" variant="outline">
+              Confirmar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

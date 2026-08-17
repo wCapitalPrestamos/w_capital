@@ -181,4 +181,5 @@ export async function closeConversation(conversationId: string) {
     .update({ status: "closed", bot_paused_until: null })
     .eq("id", conversationId);
   revalidatePath("/inbox");
+  revalidatePath(`/inbox/${conversationId}`);
 }
