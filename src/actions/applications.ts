@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
+import { TRANSITIONS } from "@/lib/application-transitions";
 import { createClient } from "@/lib/supabase/server";
 import type { ApplicationStatus, BorrowerType, CollateralType } from "@/lib/types";
 
@@ -49,17 +50,6 @@ export async function createApplication(input: {
   revalidatePath("/solicitudes");
   return { ok: true, id: data.id };
 }
-
-// Transiciones permitidas por estado (validación de flujo, no de rol)
-export const TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
-  draft: ["docs_pending", "cancelled"],
-  docs_pending: ["under_review", "cancelled"],
-  under_review: ["approved", "rejected", "docs_pending", "cancelled"],
-  approved: ["cancelled"], // → disbursed solo vía RPC de desembolso
-  rejected: ["under_review"],
-  disbursed: [],
-  cancelled: ["draft"],
-};
 
 export async function changeApplicationStatus(
   applicationId: string,

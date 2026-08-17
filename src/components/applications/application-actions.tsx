@@ -12,7 +12,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { TRANSITIONS, changeApplicationStatus } from "@/actions/applications";
+import { changeApplicationStatus } from "@/actions/applications";
+import { TRANSITIONS } from "@/lib/application-transitions";
 import { createUploadLink } from "@/actions/documents";
 import { disburseLoan } from "@/actions/loans";
 import { Button } from "@/components/ui/button";
