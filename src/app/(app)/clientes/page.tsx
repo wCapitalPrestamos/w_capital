@@ -94,7 +94,7 @@ export default async function ClientesPage({
       [label, tone] = ["Aprobada", "ok"];
     else if (myApps.some((a) => a.status === "under_review"))
       [label, tone] = ["En análisis", "warn"];
-    else if (myApps.length > 0) [label, tone] = ["Solicitud activa", "info"];
+    else if (myApps.length > 0) [label, tone] = ["Solicitud activa", "purple"];
 
     statusByContact.set(c.id, {
       label,

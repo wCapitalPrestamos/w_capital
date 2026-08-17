@@ -22,6 +22,7 @@ export const chipTone = {
   warn: "bg-warn-soft text-warn",
   bad: "bg-bad-soft text-bad",
   blue: "bg-blue-soft text-blue",
+  purple: "bg-purple-soft text-purple",
 } as const;
 
 export type ChipTone = keyof typeof chipTone;
