@@ -23,7 +23,7 @@ export default async function InboxLayout({
   return (
     <div
       suppressHydrationWarning
-      className="fixed inset-y-0 right-0 left-[252px] z-10 flex flex-col overflow-hidden bg-background"
+      className="fixed inset-y-0 right-0 left-0 z-10 flex flex-col overflow-hidden bg-background md:left-[var(--sidebar-inset)]"
     >
       <PageHeader crumb="Conversaciones" title="Bandeja" />
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden animate-rise-in">

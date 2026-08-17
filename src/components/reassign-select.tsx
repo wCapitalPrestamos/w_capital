@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export function ReassignSelect({
   value,
@@ -35,14 +36,16 @@ export function ReassignSelect({
 
   return (
     <Select
-      value={value ?? undefined}
+      value={value ?? ""}
       onValueChange={handleChange}
       disabled={pending}
     >
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder}>
-          {(profileId: string) =>
-            options.find((o) => o.id === profileId)?.full_name ?? profileId
+      <SelectTrigger className={cn("max-w-45", className)}>
+        <SelectValue placeholder={placeholder} className="flex-none truncate">
+          {(profileId: string | null) =>
+            profileId
+              ? (options.find((o) => o.id === profileId)?.full_name ?? profileId)
+              : placeholder
           }
         </SelectValue>
       </SelectTrigger>

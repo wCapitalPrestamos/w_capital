@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AlertCircle, Search } from "lucide-react";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
-import { formatRelativeTime } from "@/lib/format";
+import { formatPhone, formatRelativeTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -125,7 +125,8 @@ export function ConversationList({
         )}
         {visible.map((c) => {
           const active = params?.conversationId === c.id;
-          const name = c.contact?.full_name || c.contact?.phone || "Sin nombre";
+          const name =
+            c.contact?.full_name || formatPhone(c.contact?.phone) || "Sin nombre";
           return (
             <Link
               key={c.id}
@@ -164,7 +165,7 @@ export function ConversationList({
                     </span>
                   )}
                 </div>
-                <div className="mt-[7px] flex items-center gap-1.5">
+                <div className="mt-[7px] flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   <span
                     className={cn(
                       "inline-flex h-[19px] items-center rounded-full px-2 text-[10.5px] font-semibold",

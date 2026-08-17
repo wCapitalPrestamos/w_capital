@@ -32,7 +32,7 @@ import { ChannelIcon } from "@/components/inbox/channel-icon";
 import { ReassignSelect } from "@/components/reassign-select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { formatDateTime, formatPhone, formatRelativeTime } from "@/lib/format";
 import { channelLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/client";
 import type { Contact, Conversation, Message, Profile } from "@/lib/types";
@@ -182,7 +182,7 @@ export function Thread({
     });
   };
 
-  const name = contact.full_name || contact.phone || "Sin nombre";
+  const name = contact.full_name || formatPhone(contact.phone) || "Sin nombre";
   const isBotStatus = conversation.status === "bot";
   const canReassign =
     profile.role === "admin" || conversation.assigned_to === profile.id;
@@ -190,7 +190,7 @@ export function Thread({
   return (
     <div className="grid h-full min-h-0 min-w-0 flex-1 grid-rows-[auto_1fr_auto] overflow-hidden bg-background">
       {/* Encabezado */}
-      <header className="flex shrink-0 items-center justify-between gap-3.5 border-b border-line-2 bg-surface px-6 py-3.5">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-b border-line-2 bg-surface px-4 py-3.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex size-[38px] shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-semibold text-brand-ink">
             {name.slice(0, 1).toUpperCase()}
@@ -205,12 +205,12 @@ export function Thread({
             <p className="flex items-center gap-1.5 text-xs text-ink-2">
               <ChannelIcon channel={conversation.channel} />
               {channelLabels[conversation.channel]}
-              {contact.phone ? ` · ${contact.phone}` : ""}
+              {contact.phone ? ` · ${formatPhone(contact.phone)}` : ""}
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {isBotStatus ? (
             <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-line-2 px-[11px] text-[11.5px] font-semibold text-ink-2">
               <Bot className="size-3.5" /> Bot activo
@@ -278,7 +278,7 @@ export function Thread({
       </header>
 
       {/* Mensajes */}
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]">
+      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]">
         {messages.map((m) => (
           <MessageBubble key={m.id} message={m} profileNames={profileNames} />
         ))}
@@ -357,14 +357,17 @@ function MessageBubble({
       : null;
 
   return (
-    <div className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
+    <div
+      className={cn(
+        "flex min-w-0 w-full",
+        isOutbound ? "justify-end" : "justify-start",
+      )}
+    >
       <div
         className={cn(
           "max-w-[74%] rounded-[18px] px-[15px] py-3 text-[13.5px] leading-[1.5] shadow-card",
           isOutbound
-            ? isBot
-              ? "rounded-br-md border border-line-2 bg-surface-2 text-ink"
-              : "rounded-br-md bg-brand text-white"
+            ? "rounded-br-md bg-brand text-white"
             : "rounded-bl-md border border-line-2 bg-surface",
         )}
       >
@@ -372,7 +375,7 @@ function MessageBubble({
           <p
             className={cn(
               "mb-1 flex items-center gap-1 text-[11px] font-semibold",
-              isOutbound && !isBot ? "text-white/75" : "text-ink-3",
+              isOutbound ? "text-white/75" : "text-ink-3",
             )}
           >
             {isBot && <Bot className="size-3" />}
@@ -389,7 +392,7 @@ function MessageBubble({
         <p
           className={cn(
             "mt-1.5 flex items-center justify-end gap-[5px] text-[10.5px]",
-            isOutbound && !isBot ? "text-white/70" : "text-ink-3",
+            isOutbound ? "text-white/70" : "text-ink-3",
           )}
         >
           {formatDateTime(m.sent_at ?? m.created_at)}

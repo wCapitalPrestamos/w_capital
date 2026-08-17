@@ -53,6 +53,19 @@ export function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
+// "526624335276" (52 + 10 dígitos, como lo manda WhatsApp) -> "+52 6624335276"
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("52")) {
+    return `+52 ${digits.slice(2)}`;
+  }
+  if (digits.length === 10) {
+    return `+52 ${digits}`;
+  }
+  return phone;
+}
+
 // "2026-08-10" en zona America/Hermosillo (sin DST)
 export function todayHermosillo(): string {
   return new Intl.DateTimeFormat("en-CA", {

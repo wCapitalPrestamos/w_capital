@@ -14,10 +14,21 @@ import { applicationFolio, loanFolio, sourceChannelLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type { Contact, Conversation, Loan, LoanApplication } from "@/lib/types";
 
+const BACK_TARGETS: Record<string, { href: string; label: string }> = {
+  leads: { href: "/leads", label: "Leads" },
+};
+
 export default async function ClienteDetailPage({
   params,
+  searchParams,
 }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
+  const { from } = await searchParams;
+  const back =
+    (typeof from === "string" && BACK_TARGETS[from]) || {
+      href: "/clientes",
+      label: "Clientes",
+    };
   const supabase = await createClient();
 
   const { data: contact } = await supabase
@@ -50,7 +61,7 @@ export default async function ClienteDetailPage({
   return (
     <>
       <PageHeader crumb="Directorio" title={contact.full_name || "Sin nombre"}>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/clientes"><ArrowLeft className="size-4" /> Clientes</Link>} />
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={back.href}><ArrowLeft className="size-4" /> {back.label}</Link>} />
         <CreateLeadButton contactId={contact.id} />
         <CreateApplicationButton contactId={contact.id} />
       </PageHeader>

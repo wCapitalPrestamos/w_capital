@@ -114,17 +114,24 @@ export async function getMessengerProfileName(
   psid: string,
 ): Promise<string | null> {
   const token = process.env.MESSENGER_PAGE_TOKEN;
-  if (!token) return null;
+  if (!token) {
+    console.error("[getMessengerProfileName] MESSENGER_PAGE_TOKEN no está definido en este proceso");
+    return null;
+  }
 
   try {
     const res = await fetch(
       `${GRAPH}/${psid}?fields=first_name,last_name&access_token=${token}`,
     );
-    if (!res.ok) return null;
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error("[getMessengerProfileName] Graph API error", res.status, json);
+      return null;
+    }
     const name = [json.first_name, json.last_name].filter(Boolean).join(" ");
     return name || null;
-  } catch {
+  } catch (e) {
+    console.error("[getMessengerProfileName] fetch failed", e);
     return null;
   }
 }

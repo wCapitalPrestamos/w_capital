@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider } from "@/components/sidebar-context";
 import { requireProfile } from "@/lib/auth";
 import { todayHermosillo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -48,9 +49,9 @@ export default async function AppLayout({
   };
 
   return (
-    <div suppressHydrationWarning className="flex min-h-screen flex-1 text-[14px]">
+    <SidebarProvider>
       <AppSidebar profile={profile} counts={counts} today={todayStats} />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
-    </div>
+    </SidebarProvider>
   );
 }

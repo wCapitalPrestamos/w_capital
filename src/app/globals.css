@@ -206,6 +206,22 @@
   }
 }
 
+/* Ancho reservado por el sidebar en el flujo — 0 en móvil (el sidebar flota
+ * encima como drawer), y varía en desktop según esté colapsado o no. Lo usan
+ * los layouts con position:fixed (ej. Bandeja) que necesitan alinearse con el
+ * sidebar sin depender de un valor hardcodeado. */
+:root {
+  --sidebar-inset: 0px;
+}
+@media (min-width: 768px) {
+  :root {
+    --sidebar-inset: 252px;
+  }
+  [data-sidebar="collapsed"] {
+    --sidebar-inset: 72px;
+  }
+}
+
 /* Oculta la barra de scroll visualmente sin quitar la posibilidad de scrollear */
 @utility scrollbar-hidden {
   scrollbar-width: none;

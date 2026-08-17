@@ -152,7 +152,7 @@ function LeadCard({
         <Chip tone={tone}>{leadStageLabels[stage]}</Chip>
       </div>
       <Link
-        href={`/clientes/${lead.contact?.id ?? ""}`}
+        href={`/clientes/${lead.contact?.id ?? ""}?from=leads`}
         className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
       >
         {lead.contact?.full_name || lead.contact?.phone || "Sin nombre"}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClickableRow } from "@/components/contacts/clickable-row";
 import { PageHeader } from "@/components/page-header";
 import { Semaphore } from "@/components/loans/semaphore";
 import { LoanStatusBadge } from "@/components/status-badge";
@@ -98,7 +99,7 @@ export default async function PrestamosPage() {
             </TableHeader>
             <TableBody>
               {rows.map((l) => (
-                <TableRow key={l.loan_id}>
+                <ClickableRow key={l.loan_id} href={`/prestamos/${l.loan_id}`}>
                   <TableCell className="pl-5 font-mono text-[12.5px]">
                     <Link
                       href={`/prestamos/${l.loan_id}`}
@@ -141,7 +142,7 @@ export default async function PrestamosPage() {
                   <TableCell className="pr-5 text-right text-[13px] text-ink-3">
                     {formatDate(l.disbursed_at)}
                   </TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
               {rows.length === 0 && (
                 <TableRow>
