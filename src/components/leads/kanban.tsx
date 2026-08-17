@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -154,16 +154,33 @@ function LeadCard({
   stage: LeadStage;
   onDiscard: (leadId: string, reason: string) => void;
 }) {
+  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
   });
   const [discardOpen, setDiscardOpen] = useState(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
+  const goToContact = () => {
+    if (lead.contact?.id) router.push(`/clientes/${lead.contact.id}?from=leads`);
+  };
 
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      onPointerDownCapture={(e) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY };
+      }}
+      onClick={(e) => {
+        const start = pointerStart.current;
+        const moved =
+          !start ||
+          Math.abs(e.clientX - start.x) > 5 ||
+          Math.abs(e.clientY - start.y) > 5;
+        if (!moved && !isDragging) goToContact();
+      }}
       style={
         transform
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
@@ -171,7 +188,7 @@ function LeadCard({
       }
       className={cn(
         boardCardClass,
-        "touch-none",
+        "touch-none cursor-pointer",
         isDragging && "z-50 opacity-90 shadow-lifted",
       )}
     >
@@ -200,12 +217,9 @@ function LeadCard({
           )}
         </div>
       </div>
-      <Link
-        href={`/clientes/${lead.contact?.id ?? ""}?from=leads`}
-        className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
-      >
+      <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
         {lead.contact?.full_name || lead.contact?.phone || "Sin nombre"}
-      </Link>
+      </p>
       <p className="mt-2.5 font-mono text-[15px] tracking-[-.02em]">
         {lead.interest_amount !== null
           ? formatMoney(lead.interest_amount)
