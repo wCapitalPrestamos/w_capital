@@ -25,6 +25,7 @@ const COLUMNS: { status: ApplicationStatus; dot: string }[] = [
   { status: "approved", dot: "#1F8A53" },
   { status: "disbursed", dot: "#2E7DB2" },
   { status: "rejected", dot: "#D93A2B" },
+  { status: "cancelled", dot: "#B4B8BC" },
 ];
 
 export default async function SolicitudesPage() {

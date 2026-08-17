@@ -21,6 +21,11 @@ const bodySchema = z.object({
 
 const OPEN_STATUSES = ["draft", "docs_pending", "under_review"];
 
+// Si la solicitud abierta lleva más de esto sin actividad, se considera
+// abandonada: se cancela sola y se abre una nueva (documentos como
+// comprobante de domicilio/ingresos ya no sirven de tan viejos).
+const STALE_AFTER_DAYS = 30;
+
 export async function POST(request: Request) {
   if (!isValidN8nRequest(request)) return unauthorized();
 
@@ -47,14 +52,32 @@ export async function POST(request: Request) {
   // Solicitud abierta más reciente, o una nueva en docs_pending
   const { data: existing } = await db
     .from("loan_applications")
-    .select("id, requested_amount")
+    .select("id, requested_amount, status, created_at")
     .eq("contact_id", contact.id)
     .in("status", OPEN_STATUSES)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  let applicationId = existing?.id;
+  const isStale =
+    !!existing &&
+    Date.now() - new Date(existing.created_at).getTime() > STALE_AFTER_DAYS * 86_400_000;
+
+  if (existing && isStale) {
+    await db
+      .from("loan_applications")
+      .update({ status: "cancelled" })
+      .eq("id", existing.id);
+    await db.from("application_status_history").insert({
+      application_id: existing.id,
+      from_status: existing.status,
+      to_status: "cancelled",
+      note: `Cancelada automáticamente: sin actividad por más de ${STALE_AFTER_DAYS} días. El cliente reinició la solicitud.`,
+    });
+  }
+
+  const reusable = existing && !isStale ? existing : null;
+  let applicationId = reusable?.id;
   const isNewApplication = !applicationId;
 
   if (!applicationId) {
@@ -73,7 +96,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, error: error.message }, { status: 500 });
     }
     applicationId = created.id;
-  } else {
+  } else if (existing) {
     // El cliente puede haber dado estos datos en un mensaje posterior al que
     // creó la solicitud (p. ej. respondiendo "es para mi negocio" a la
     // pregunta del bot) — antes se perdían porque solo se guardaban al crear.

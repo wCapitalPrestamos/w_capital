@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Ban,
   Banknote,
   CheckCircle2,
   FileSearch,
@@ -11,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { changeApplicationStatus } from "@/actions/applications";
+import { TRANSITIONS, changeApplicationStatus } from "@/actions/applications";
 import { createUploadLink } from "@/actions/documents";
 import { disburseLoan } from "@/actions/loans";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function ApplicationActions({
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [disburseOpen, setDisburseOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const canDecide = role === "admin" || role === "analyst";
 
@@ -53,6 +55,7 @@ export function ApplicationActions({
         setApproveOpen(false);
         setRejectOpen(false);
         setDisburseOpen(false);
+        setCancelOpen(false);
         router.refresh();
       } else {
         toast.error(result.error ?? "Ocurrió un error.");
@@ -154,6 +157,36 @@ export function ApplicationActions({
           >
             <Undo2 className="size-4" /> Reabrir análisis
           </Button>
+        )}
+
+        {app.status === "cancelled" && (
+          <Button
+            variant="outline"
+            onClick={() =>
+              transition(
+                () => changeApplicationStatus(app.id, "draft"),
+                "Solicitud reabierta.",
+              )
+            }
+            disabled={pending}
+          >
+            <Undo2 className="size-4" /> Reabrir solicitud
+          </Button>
+        )}
+
+        {TRANSITIONS[app.status].includes("cancelled") && (
+          <>
+            <div className="mt-1 border-t pt-2">
+              <Button
+                variant="outline"
+                className="w-full text-ink-3 hover:text-destructive"
+                onClick={() => setCancelOpen(true)}
+                disabled={pending}
+              >
+                <Ban className="size-4" /> Cancelar solicitud
+              </Button>
+            </div>
+          </>
         )}
       </CardContent>
 
@@ -294,6 +327,47 @@ export function ApplicationActions({
             </div>
             <Button type="submit" disabled={pending}>
               {pending ? "Generando…" : "Confirmar desembolso"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancelar */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen} disablePointerDismissal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar solicitud</DialogTitle>
+          </DialogHeader>
+          <p className="px-7 pt-[22px] text-sm text-muted-foreground">
+            Se cierra esta solicitud sin aprobarla ni rechazarla — úsalo cuando el
+            cliente ya no siga interesado o lleve mucho tiempo sin responder. Se
+            puede reabrir después si hace falta.
+          </p>
+          <form
+            action={(formData) =>
+              transition(
+                () =>
+                  changeApplicationStatus(
+                    app.id,
+                    "cancelled",
+                    String(formData.get("note") ?? "").trim() || undefined,
+                  ),
+                "Solicitud cancelada.",
+              )
+            }
+            className="grid gap-4 px-7 py-[22px]"
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="cancel_note">Motivo (opcional)</Label>
+              <Textarea
+                id="cancel_note"
+                name="note"
+                rows={2}
+                placeholder="Ej. el cliente ya no contestó, ya no le interesa…"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={pending}>
+              {pending ? "Cancelando…" : "Confirmar cancelación"}
             </Button>
           </form>
         </DialogContent>

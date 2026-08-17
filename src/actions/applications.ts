@@ -51,7 +51,7 @@ export async function createApplication(input: {
 }
 
 // Transiciones permitidas por estado (validación de flujo, no de rol)
-const TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+export const TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   draft: ["docs_pending", "cancelled"],
   docs_pending: ["under_review", "cancelled"],
   under_review: ["approved", "rejected", "docs_pending", "cancelled"],
