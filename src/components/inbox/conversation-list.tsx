@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AlertCircle, Search } from "lucide-react";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
+import { useMinuteNow } from "@/hooks/use-minute-now";
 import { formatPhone, formatRelativeTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import type { Conversation } from "@/lib/types";
@@ -31,6 +32,7 @@ export function ConversationList({
   const [conversations, setConversations] = useState(initialConversations);
   const [tab, setTab] = useState<"all" | "mine" | "unassigned">("all");
   const [search, setSearch] = useState("");
+  const now = useMinuteNow();
 
   useEffect(() => {
     const supabase = createClient();
@@ -180,8 +182,8 @@ export function ConversationList({
                     <span
                       className={cn(
                         "text-[10.5px] font-medium",
-                        Date.now() - new Date(c.human_since).getTime() >
-                          3600_000
+                        now > 0 &&
+                          now - new Date(c.human_since).getTime() > 3600_000
                           ? "text-warn"
                           : "text-ink-3",
                       )}

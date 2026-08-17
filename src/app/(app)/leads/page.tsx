@@ -29,7 +29,7 @@ export default async function LeadsPage() {
       <PageHeader crumb="Prospección" title="Leads">
         <NewLeadDialog contacts={(contacts ?? []) as ContactOption[]} />
       </PageHeader>
-      <div className="min-w-0 flex-1 animate-rise-in overflow-x-auto px-8 pt-6 pb-10">
+      <div className="min-w-0 flex-1 animate-rise-in overflow-x-auto px-4 pt-6 pb-10 sm:px-8">
         <LeadsKanban initialLeads={leads ?? []} />
       </div>
     </>

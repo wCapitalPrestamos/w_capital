@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { usePathname } from "next/navigation";
 
 interface SidebarState {
@@ -15,18 +15,20 @@ const SidebarContext = createContext<SidebarState | null>(null);
 const STORAGE_KEY = "wcapital:sidebar-collapsed";
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1",
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) === "1") setCollapsed(true);
-  }, []);
-
-  // Cierra el drawer móvil al navegar a otra página
-  useEffect(() => {
+  // Cierra el drawer móvil al navegar a otra página. Se ajusta durante el
+  // render (comparando contra el pathname anterior) en vez de en un efecto,
+  // para no disparar un segundo render tras el commit.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {

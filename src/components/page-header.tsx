@@ -17,7 +17,7 @@ export function PageHeader({
   const eyebrow = crumb ?? description;
 
   return (
-    <header suppressHydrationWarning className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line-2 bg-background px-8 py-4.5">
+    <header suppressHydrationWarning className="sticky top-0 z-20 flex flex-wrap items-center gap-4 border-b border-line-2 bg-background px-4 py-4.5 sm:px-8">
       <MobileSidebarTrigger />
       <div className="min-w-0 flex-1">
         {eyebrow && (

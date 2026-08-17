@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,6 +26,7 @@ import {
 } from "@/actions/inbox";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
 import { ReassignSelect } from "@/components/reassign-select";
+import { useMinuteNow } from "@/hooks/use-minute-now";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,18 +43,6 @@ import type { Contact, Conversation, Message, Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const WINDOW_MS = 24 * 3600_000;
-
-// Reloj cuantizado a 30 s (0 en el servidor) — mantiene fresca la ventana de 24 h
-function useMinuteNow(): number {
-  return useSyncExternalStore(
-    (onChange) => {
-      const timer = setInterval(onChange, 30_000);
-      return () => clearInterval(timer);
-    },
-    () => Math.floor(Date.now() / 30_000) * 30_000,
-    () => 0,
-  );
-}
 
 export function Thread({
   conversation: initialConversation,
@@ -356,7 +338,7 @@ export function Thread({
         {isBotStatus && (
           <div className="mb-[11px] flex items-center gap-2.5 rounded-xl bg-line-2 px-[13px] py-2.5 text-xs leading-[1.45] text-ink-2">
             <Bot className="size-[15px] shrink-0" />
-            El bot está activo en esta conversación. Dale "Atender" para tomarla y poder responder.
+            El bot está activo en esta conversación. Dale &quot;Atender&quot; para tomarla y poder responder.
           </div>
         )}
         {!isBotStatus && outsideWindow && (

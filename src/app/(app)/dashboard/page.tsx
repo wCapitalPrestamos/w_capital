@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader crumb="Panorama" title="Dashboard" />
-      <div className="flex flex-1 animate-rise-in flex-col gap-[22px] px-8 pt-7 pb-10">
+      <div className="flex flex-1 animate-rise-in flex-col gap-[22px] px-4 pt-7 pb-10 sm:px-8">
         <div className="grid gap-[18px] xl:grid-cols-[1.35fr_1fr]">
           {/* Hero: cartera activa */}
           <section className="relative overflow-hidden rounded-[22px] border border-line-2 bg-surface p-[26px_28px] shadow-lifted">
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
                 <p className="text-[11.5px] tracking-[.1em] uppercase text-ink-3">
                   Cartera activa
                 </p>
-                <p className="mt-2.5 font-serif text-[58px] leading-none tracking-[-.02em]">
+                <p className="mt-2.5 break-words font-serif text-[34px] leading-none tracking-[-.02em] sm:text-[46px] lg:text-[58px]">
                   {formatMoney(portfolio?.total_outstanding ?? 0)}
                 </p>
                 <p className="mt-3 text-[13.5px] text-ink-2">
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
               </div>
               <div className="mt-3 flex items-baseline gap-2.5">
                 <p
-                  className={`font-serif text-[42px] leading-none ${parOver ? "text-bad" : ""}`}
+                  className={`font-serif text-[30px] leading-none sm:text-[42px] ${parOver ? "text-bad" : ""}`}
                 >
                   {par.toFixed(1)}%
                 </p>

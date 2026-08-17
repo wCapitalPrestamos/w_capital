@@ -95,7 +95,7 @@ export default async function PrestamoDetailPage({
                   {loan.contact.full_name || loan.contact.phone || "Sin nombre"}
                 </Link>
               </Info>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Info label="Monto prestado">{formatMoney(loan.principal)}</Info>
                 <Info label="Saldo de capital">
                   {formatMoney(balance?.outstanding_principal ?? loan.principal)}
@@ -136,16 +136,18 @@ export default async function PrestamoDetailPage({
               {((payments ?? []) as Payment[]).map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm"
                 >
-                  <span>
+                  <span className="min-w-0 truncate">
                     {formatDate(p.paid_on)}
                     <span className="ml-2 text-xs text-muted-foreground">
                       {paymentMethodLabels[p.method]}
                       {p.reference ? ` · ${p.reference}` : ""}
                     </span>
                   </span>
-                  <span className="font-mono font-medium">{formatMoney(p.amount)}</span>
+                  <span className="shrink-0 font-mono font-medium">
+                    {formatMoney(p.amount)}
+                  </span>
                 </div>
               ))}
               {(payments ?? []).length === 0 && (

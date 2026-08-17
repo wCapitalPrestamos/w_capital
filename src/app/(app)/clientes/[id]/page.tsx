@@ -148,10 +148,12 @@ export default async function ClienteDetailPage({
                 <Link
                   key={a.id}
                   href={`/solicitudes/${a.id}`}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent/40"
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent/40"
                 >
-                  <span className="font-medium">{applicationFolio(a.folio)}</span>
-                  <span className="text-muted-foreground">
+                  <span className="min-w-0 truncate font-medium">
+                    {applicationFolio(a.folio)}
+                  </span>
+                  <span className="min-w-0 truncate text-muted-foreground">
                     {formatMoney(a.requested_amount)}
                   </span>
                   <ApplicationStatusBadge status={a.status} />
@@ -174,10 +176,12 @@ export default async function ClienteDetailPage({
                 <Link
                   key={l.id}
                   href={`/prestamos/${l.id}`}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent/40"
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent/40"
                 >
-                  <span className="font-medium">{loanFolio(l.folio)}</span>
-                  <span className="text-muted-foreground">{formatMoney(l.principal)}</span>
+                  <span className="min-w-0 truncate font-medium">{loanFolio(l.folio)}</span>
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {formatMoney(l.principal)}
+                  </span>
                   <LoanStatusBadge status={l.status} />
                 </Link>
               ))}

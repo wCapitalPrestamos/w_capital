@@ -42,7 +42,7 @@ export default async function SolicitudesPage() {
   return (
     <>
       <PageHeader crumb="Originación" title="Solicitudes" />
-      <div className="min-w-0 flex-1 animate-rise-in overflow-x-auto px-8 pt-6 pb-10">
+      <div className="min-w-0 flex-1 animate-rise-in overflow-x-auto px-4 pt-6 pb-10 sm:px-8">
         <BoardZoom>
           {COLUMNS.map(({ status, dot }) => {
             const columnApps = apps.filter((a) => a.status === status);

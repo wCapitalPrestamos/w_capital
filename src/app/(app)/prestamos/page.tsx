@@ -64,7 +64,7 @@ export default async function PrestamosPage() {
   return (
     <>
       <PageHeader crumb="Cartera" title="Préstamos" />
-      <div className="flex flex-1 animate-rise-in flex-col gap-4 px-8 pt-6 pb-10">
+      <div className="flex flex-1 animate-rise-in flex-col gap-4 px-4 pt-6 pb-10 sm:px-8">
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-line-2 bg-line-2 shadow-card xl:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label} className="bg-surface p-[18px_20px]">

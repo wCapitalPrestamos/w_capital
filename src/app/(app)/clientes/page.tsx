@@ -128,7 +128,7 @@ export default async function ClientesPage({
       <PageHeader crumb="Directorio" title="Clientes">
         <NewContactDialog />
       </PageHeader>
-      <div className="flex flex-1 animate-rise-in flex-col gap-4 px-8 pt-6 pb-10">
+      <div className="flex flex-1 animate-rise-in flex-col gap-4 px-4 pt-6 pb-10 sm:px-8">
         <div className="flex flex-wrap items-center gap-2">
           {FILTERS.map(({ key, label }) => (
             <Link
