@@ -6,13 +6,23 @@ import { CreateApplicationButton } from "@/components/applications/create-applic
 import { CreateLeadButton } from "@/components/leads/create-lead-button";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
 import { PageHeader } from "@/components/page-header";
-import { ApplicationStatusBadge, LoanStatusBadge } from "@/components/status-badge";
+import {
+  ApplicationStatusBadge,
+  LeadStageBadge,
+  LoanStatusBadge,
+} from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney, formatRelativeTime } from "@/lib/format";
 import { applicationFolio, loanFolio, sourceChannelLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
-import type { Contact, Conversation, Loan, LoanApplication } from "@/lib/types";
+import type {
+  Contact,
+  Conversation,
+  LeadStage,
+  Loan,
+  LoanApplication,
+} from "@/lib/types";
 
 const BACK_TARGETS: Record<string, { href: string; label: string }> = {
   leads: { href: "/leads", label: "Leads" },
@@ -39,7 +49,7 @@ export default async function ClienteDetailPage({
 
   if (!contact) notFound();
 
-  const [{ data: conversations }, { data: applications }, { data: loans }] =
+  const [{ data: conversations }, { data: applications }, { data: loans }, { data: activeLead }] =
     await Promise.all([
       supabase
         .from("conversations")
@@ -56,13 +66,29 @@ export default async function ClienteDetailPage({
         .select("*")
         .eq("contact_id", id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("leads")
+        .select("stage")
+        .eq("contact_id", id)
+        .neq("stage", "discarded")
+        .maybeSingle<{ stage: LeadStage }>(),
     ]);
 
   return (
     <>
       <PageHeader crumb="Directorio" title={contact.full_name || "Sin nombre"}>
         <Button variant="outline" size="sm" nativeButton={false} render={<Link href={back.href}><ArrowLeft className="size-4" /> {back.label}</Link>} />
-        <CreateLeadButton contactId={contact.id} />
+        {activeLead ? (
+          <Link
+            href="/leads"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            title="Ya es un lead activo — ver en el kanban"
+          >
+            Lead: <LeadStageBadge stage={activeLead.stage} />
+          </Link>
+        ) : (
+          <CreateLeadButton contactId={contact.id} />
+        )}
         <CreateApplicationButton contactId={contact.id} />
       </PageHeader>
 
