@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   // Solicitud abierta más reciente, o una nueva en docs_pending
   const { data: existing } = await db
     .from("loan_applications")
-    .select("id")
+    .select("id, requested_amount")
     .eq("contact_id", contact.id)
     .in("status", OPEN_STATUSES)
     .order("created_at", { ascending: false })
@@ -55,6 +55,8 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   let applicationId = existing?.id;
+  const isNewApplication = !applicationId;
+
   if (!applicationId) {
     const { data: created, error } = await db
       .from("loan_applications")
@@ -71,6 +73,21 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, error: error.message }, { status: 500 });
     }
     applicationId = created.id;
+  } else {
+    // El cliente puede haber dado estos datos en un mensaje posterior al que
+    // creó la solicitud (p. ej. respondiendo "es para mi negocio" a la
+    // pregunta del bot) — antes se perdían porque solo se guardaban al crear.
+    const patch: Record<string, unknown> = {};
+    if (body.requested_amount != null && existing.requested_amount == null) {
+      patch.requested_amount = body.requested_amount;
+    }
+    if (body.is_business != null) {
+      patch.borrower_type = body.is_business ? "business" : "personal";
+      patch.business_name = body.is_business ? (body.business_name ?? null) : null;
+    }
+    if (Object.keys(patch).length > 0) {
+      await db.from("loan_applications").update(patch).eq("id", applicationId);
+    }
   }
 
   const { rawToken, tokenHash } = generateUploadToken();
@@ -88,6 +105,7 @@ export async function POST(request: Request) {
   return Response.json({
     ok: true,
     application_id: applicationId,
+    is_new: isNewApplication,
     url: `${base}/subir/${rawToken}`,
   });
 }
