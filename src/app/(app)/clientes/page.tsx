@@ -91,7 +91,7 @@ export default async function ClientesPage({
     if (inMora) [label, tone] = ["En mora", "bad"];
     else if (hasLoan) [label, tone] = ["Préstamo activo", "ok"];
     else if (myApps.some((a) => a.status === "approved"))
-      [label, tone] = ["Aprobada", "ok"];
+      [label, tone] = ["Aprobada", "blue"];
     else if (myApps.some((a) => a.status === "under_review"))
       [label, tone] = ["En análisis", "warn"];
     else if (myApps.length > 0) [label, tone] = ["Solicitud activa", "info"];
