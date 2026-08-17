@@ -87,17 +87,21 @@ export async function findOrCreateConversation(
   return created as Conversation;
 }
 
-// Aplica la reanudación automática del bot: si estaba en 'human' y el timer
-// expiró, vuelve a 'bot'. Devuelve la conversación actualizada.
+// Aplica la reanudación automática del bot ante un mensaje entrante nuevo:
+// si estaba en 'human' y el timer expiró, o si estaba 'closed' (el cliente
+// volvió a escribir después de cerrada), vuelve a 'bot'. Devuelve la
+// conversación actualizada.
 export async function applyBotAutoResume(
   db: SupabaseClient,
   conversation: Conversation,
 ): Promise<Conversation> {
-  if (
+  const pausedTimerExpired =
     conversation.status === "human" &&
     conversation.bot_paused_until &&
-    new Date(conversation.bot_paused_until).getTime() < Date.now()
-  ) {
+    new Date(conversation.bot_paused_until).getTime() < Date.now();
+  const wasClosed = conversation.status === "closed";
+
+  if (pausedTimerExpired || wasClosed) {
     const { data } = await db
       .from("conversations")
       .update({ status: "bot", bot_paused_until: null, human_since: null })

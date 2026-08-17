@@ -34,6 +34,13 @@ import {
 import { ChannelIcon } from "@/components/inbox/channel-icon";
 import { ReassignSelect } from "@/components/reassign-select";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateTime, formatPhone, formatRelativeTime } from "@/lib/format";
 import { channelLabels } from "@/lib/labels";
@@ -76,6 +83,7 @@ export function Thread({
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
   const [closing, startClosing] = useTransition();
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const handleClose = () => {
@@ -288,19 +296,52 @@ export function Thread({
             </Button>
           )}
           {conversation.status !== "closed" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-ink-3 hover:text-destructive"
-              onClick={handleClose}
-              disabled={closing}
-              title="Archiva la conversación fuera de la bandeja activa"
-            >
-              <Archive className="size-4" /> Cerrar
-            </Button>
+            <>
+              <span className="mx-0.5 h-5 w-px shrink-0 bg-line-2" aria-hidden />
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-ink-3 hover:text-destructive"
+                onClick={() => setCloseConfirmOpen(true)}
+                disabled={closing}
+                title="Archiva la conversación fuera de la bandeja activa"
+              >
+                <Archive className="size-4" /> Cerrar
+              </Button>
+            </>
           )}
         </div>
       </header>
+
+      <Dialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Cerrar esta conversación?</DialogTitle>
+          </DialogHeader>
+          <p className="px-7 pt-[22px] text-sm text-muted-foreground">
+            Se archiva fuera de la bandeja activa. Si {name} vuelve a escribir, se
+            reabre sola automáticamente.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCloseConfirmOpen(false)}
+              disabled={closing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                setCloseConfirmOpen(false);
+                handleClose();
+              }}
+              disabled={closing}
+            >
+              {closing ? "Cerrando…" : "Sí, cerrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mensajes */}
       <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]">
