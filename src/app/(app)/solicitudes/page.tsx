@@ -77,7 +77,7 @@ export default async function SolicitudesPage() {
                       {app.contact ? (
                         <Link
                           href={`/clientes/${app.contact.id}`}
-                          className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand hover:underline"
+                          className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
                         >
                           {app.contact.full_name || app.contact.phone || "Sin nombre"}
                         </Link>

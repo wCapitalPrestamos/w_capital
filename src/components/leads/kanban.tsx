@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -174,6 +175,7 @@ function LeadCard({
         pointerStart.current = { x: e.clientX, y: e.clientY };
       }}
       onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a, button")) return;
         const start = pointerStart.current;
         const moved =
           !start ||
@@ -217,9 +219,18 @@ function LeadCard({
           )}
         </div>
       </div>
-      <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
-        {lead.contact?.full_name || lead.contact?.phone || "Sin nombre"}
-      </p>
+      {lead.contact?.id ? (
+        <Link
+          href={`/clientes/${lead.contact.id}?from=leads`}
+          className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
+        >
+          {lead.contact.full_name || lead.contact.phone || "Sin nombre"}
+        </Link>
+      ) : (
+        <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
+          Sin nombre
+        </p>
+      )}
       <p className="mt-2.5 font-mono text-[15px] tracking-[-.02em]">
         {lead.interest_amount !== null
           ? formatMoney(lead.interest_amount)
