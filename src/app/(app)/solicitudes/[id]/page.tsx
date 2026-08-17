@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/applications/application-actions";
 import { ApplicationAssignments } from "@/components/applications/application-assignments";
+import { ApplicationEditForm } from "@/components/applications/application-edit-form";
 import { DocumentsChecklist } from "@/components/applications/documents-checklist";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationStatusBadge } from "@/components/status-badge";
@@ -10,12 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import {
-  applicationFolio,
-  applicationStatusLabels,
-  borrowerTypeLabels,
-  collateralTypeLabels,
-} from "@/lib/labels";
+import { applicationFolio, applicationStatusLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ApplicationStatusHistory,
@@ -93,15 +89,6 @@ export default async function SolicitudDetailPage({
                 </Link>
               </Detail>
               <Detail label="Teléfono">{app.contact.phone ?? "—"}</Detail>
-              <Detail label="Préstamo para">
-                {app.borrower_type === "business"
-                  ? `${borrowerTypeLabels.business}${app.business_name ? ` — ${app.business_name}` : ""}`
-                  : borrowerTypeLabels.personal}
-              </Detail>
-              <Detail label="Monto solicitado">{formatMoney(app.requested_amount)}</Detail>
-              <Detail label="Plazo solicitado">
-                {app.term_weeks ? `${app.term_weeks} semanas` : "—"}
-              </Detail>
               {app.status === "approved" || app.status === "disbursed" ? (
                 <>
                   <Detail label="Monto aprobado">{formatMoney(app.approved_amount)}</Detail>
@@ -112,11 +99,6 @@ export default async function SolicitudDetailPage({
               ) : null}
               <Detail label="Tasa semanal">
                 {(Number(app.weekly_rate) * 100).toFixed(2)}%
-              </Detail>
-              <Detail label="Destino">{app.purpose ?? "—"}</Detail>
-              <Detail label="Garantía">
-                {app.collateral_type ? collateralTypeLabels[app.collateral_type] : "—"}
-                {app.collateral_description ? ` — ${app.collateral_description}` : ""}
               </Detail>
               <ApplicationAssignments
                 applicationId={app.id}
@@ -137,6 +119,15 @@ export default async function SolicitudDetailPage({
                   </Link>
                 </Detail>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Detalles de la solicitud</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ApplicationEditForm application={app} />
             </CardContent>
           </Card>
 
