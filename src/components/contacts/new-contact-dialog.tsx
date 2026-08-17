@@ -51,7 +51,7 @@ export function NewContactDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
           <Button>
