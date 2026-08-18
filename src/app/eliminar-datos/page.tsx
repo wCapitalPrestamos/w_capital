@@ -4,6 +4,9 @@ export const metadata = {
     "Instrucciones para solicitar la eliminación de tus datos personales en W Capital.",
 };
 
+// Forzado a dinámico para que reciba el nonce de CSP por request (ver src/proxy.ts)
+export const dynamic = "force-dynamic";
+
 const LAST_UPDATED = "16 de agosto de 2026";
 
 export default function EliminarDatosPage() {

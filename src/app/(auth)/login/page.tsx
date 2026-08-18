@@ -4,6 +4,9 @@ import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Iniciar sesión" };
 
+// Forzado a dinámico para que reciba el nonce de CSP por request (ver src/proxy.ts)
+export const dynamic = "force-dynamic";
+
 const FEATURES = [
   {
     icon: MessageSquare,

@@ -4,6 +4,9 @@ export const metadata = {
     "Términos de servicio de W Capital S.A. de C.V. para el uso de nuestro asistente automatizado y canales de atención.",
 };
 
+// Forzado a dinámico para que reciba el nonce de CSP por request (ver src/proxy.ts)
+export const dynamic = "force-dynamic";
+
 const LAST_UPDATED = "16 de agosto de 2026";
 
 export default function TerminosPage() {
