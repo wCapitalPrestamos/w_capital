@@ -10,6 +10,7 @@ import {
   Check,
   CheckCheck,
   Clock,
+  FileText,
   Send,
   User,
   X,
@@ -17,6 +18,7 @@ import {
 import { toast } from "sonner";
 import {
   closeConversation,
+  getChatMediaUrl,
   markConversationRead,
   reassignConversation,
   resolveNeedsHuman,
@@ -432,6 +434,10 @@ function MessageBubble({
         )}
         {m.message_type === "text" || m.message_type === "template" ? (
           <p className="whitespace-pre-wrap break-words">{m.body}</p>
+        ) : m.message_type === "location" ? (
+          <LocationContent body={m.body} />
+        ) : m.media_storage_path ? (
+          <MediaContent message={m} />
         ) : (
           <p className="italic opacity-80">
             [{mediaLabel(m.message_type)}]{m.body ? ` ${m.body}` : ""}
@@ -448,6 +454,90 @@ function MessageBubble({
         </p>
       </div>
     </div>
+  );
+}
+
+function LocationContent({ body }: { body: string }) {
+  const match = body.match(/https:\/\/www\.google\.com\/maps\?q=\S+/);
+  if (!match) return <p className="whitespace-pre-wrap break-words">{body}</p>;
+  return (
+    <p className="whitespace-pre-wrap break-words">
+      {body.slice(0, match.index)}
+      <a
+        href={match[0]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline"
+      >
+        Ver ubicación
+      </a>
+    </p>
+  );
+}
+
+function MediaContent({ message: m }: { message: Message }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getChatMediaUrl(m.id).then((res) => {
+      if (cancelled) return;
+      if (res.ok && res.url) setUrl(res.url);
+      else setFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [m.id]);
+
+  if (failed) {
+    return (
+      <p className="italic opacity-80">
+        [{mediaLabel(m.message_type)}] No se pudo cargar el adjunto.
+      </p>
+    );
+  }
+
+  if (!url) {
+    return (
+      <p className="italic opacity-60">
+        Cargando {mediaLabel(m.message_type).toLowerCase()}…
+      </p>
+    );
+  }
+
+  if (m.message_type === "image" || m.message_type === "sticker") {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada dinámica, no aplica next/image */}
+        <img
+          src={url}
+          alt={mediaLabel(m.message_type)}
+          className="max-w-full rounded-lg"
+        />
+      </a>
+    );
+  }
+
+  if (m.message_type === "audio") {
+    return <audio controls src={url} className="max-w-full" />;
+  }
+
+  if (m.message_type === "video") {
+    return <video controls src={url} className="max-w-full rounded-lg" />;
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 underline"
+    >
+      <FileText className="size-4 shrink-0" />
+      {m.body || "Ver documento"}
+    </a>
   );
 }
 

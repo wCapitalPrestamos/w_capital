@@ -26,6 +26,7 @@ const bodySchema = z.object({
       .default("text"),
     text: z.string().default(""),
     media_url: z.string().nullable().optional(),
+    media_storage_path: z.string().nullable().optional(),
     timestamp: z.string().optional(),
   }),
 });
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
       message_type: body.message.type,
       body: body.message.text,
       media_url: body.message.media_url ?? null,
+      media_storage_path: body.message.media_storage_path ?? null,
       external_message_id: body.external_message_id,
       status: "received",
       sent_at: body.message.timestamp ?? new Date().toISOString(),
