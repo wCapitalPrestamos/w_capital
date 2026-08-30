@@ -46,12 +46,17 @@ export async function POST(request: Request) {
   const { channel, external_thread_id, external_message_id, mime_type, file_base64 } =
     parsed.data;
 
-  const ext = EXT_BY_MIME[mime_type] ?? "bin";
+  // WhatsApp suele mandar el mime type de notas de voz con parámetros de
+  // códec (p. ej. "audio/ogg; codecs=opus"). Sin normalizar, ni EXT_BY_MIME
+  // ni el allow-list del bucket hacen match exacto y la subida se rechaza.
+  const baseMimeType = mime_type.split(";")[0].trim();
+
+  const ext = EXT_BY_MIME[baseMimeType] ?? "bin";
   const path = `${channel}/${external_thread_id}/${external_message_id}.${ext}`;
   const buffer = Buffer.from(file_base64, "base64");
 
   const { error } = await db.storage.from("chat-media").upload(path, buffer, {
-    contentType: mime_type,
+    contentType: baseMimeType,
     upsert: true,
   });
 

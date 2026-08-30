@@ -18,7 +18,6 @@ import {
 import { toast } from "sonner";
 import {
   closeConversation,
-  getChatMediaUrl,
   markConversationRead,
   reassignConversation,
   resolveNeedsHuman,
@@ -390,6 +389,8 @@ export function Thread({
   );
 }
 
+const PENDING_MEDIA_TIMEOUT_MS = 2 * 60_000;
+
 function MessageBubble({
   message: m,
   profileNames,
@@ -397,6 +398,7 @@ function MessageBubble({
   message: Message;
   profileNames: Record<string, string>;
 }) {
+  const now = useMinuteNow();
   const isOutbound = m.direction === "outbound";
   const isBot = m.sender_type === "bot";
 
@@ -439,9 +441,7 @@ function MessageBubble({
         ) : m.media_storage_path ? (
           <MediaContent message={m} />
         ) : (
-          <p className="italic opacity-80">
-            [{mediaLabel(m.message_type)}]{m.body ? ` ${m.body}` : ""}
-          </p>
+          <PendingMedia message={m} now={now} />
         )}
         <p
           className={cn(
@@ -475,21 +475,22 @@ function LocationContent({ body }: { body: string }) {
   );
 }
 
-function MediaContent({ message: m }: { message: Message }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+function PendingMedia({ message: m, now }: { message: Message; now: number }) {
+  const sentAt = new Date(m.sent_at ?? m.created_at).getTime();
+  const stale = now > 0 && now - sentAt > PENDING_MEDIA_TIMEOUT_MS;
+  return (
+    <p className={cn("italic", stale ? "opacity-80" : "opacity-60")}>
+      {stale
+        ? "No se pudo recibir este adjunto."
+        : `Recibiendo ${mediaLabel(m.message_type).toLowerCase()}…`}
+      {m.body ? ` ${m.body}` : ""}
+    </p>
+  );
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    getChatMediaUrl(m.id).then((res) => {
-      if (cancelled) return;
-      if (res.ok && res.url) setUrl(res.url);
-      else setFailed(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [m.id]);
+function MediaContent({ message: m }: { message: Message }) {
+  const [failed, setFailed] = useState(false);
+  const url = `/api/media/${m.id}`;
 
   if (failed) {
     return (
@@ -499,33 +500,35 @@ function MediaContent({ message: m }: { message: Message }) {
     );
   }
 
-  if (!url) {
-    return (
-      <p className="italic opacity-60">
-        Cargando {mediaLabel(m.message_type).toLowerCase()}…
-      </p>
-    );
-  }
-
   if (m.message_type === "image" || m.message_type === "sticker") {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer">
-        {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada dinámica, no aplica next/image */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- ruta propia que redirige a una URL firmada fresca, no aplica next/image */}
         <img
           src={url}
           alt={mediaLabel(m.message_type)}
           className="max-w-full rounded-lg"
+          onError={() => setFailed(true)}
         />
       </a>
     );
   }
 
   if (m.message_type === "audio") {
-    return <audio controls src={url} className="max-w-full" />;
+    return (
+      <audio controls src={url} className="max-w-full" onError={() => setFailed(true)} />
+    );
   }
 
   if (m.message_type === "video") {
-    return <video controls src={url} className="max-w-full rounded-lg" />;
+    return (
+      <video
+        controls
+        src={url}
+        className="max-w-full rounded-lg"
+        onError={() => setFailed(true)}
+      />
+    );
   }
 
   return (

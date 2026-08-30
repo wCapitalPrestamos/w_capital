@@ -8,7 +8,6 @@ import {
   sendMessengerText,
   sendWhatsAppText,
 } from "@/lib/meta/send";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Conversation, Message } from "@/lib/types";
 
@@ -172,35 +171,6 @@ export async function resolveNeedsHuman(conversationId: string) {
     .update({ needs_human: false })
     .eq("id", conversationId);
   revalidatePath(`/inbox/${conversationId}`);
-}
-
-// URL firmada de lectura (10 min, para que aguante mientras se ve/desplaza el hilo)
-// para un adjunto de chat (imagen/audio/video/documento)
-export async function getChatMediaUrl(
-  messageId: string,
-): Promise<{ ok: boolean; url?: string; error?: string }> {
-  await requireProfile();
-  const supabase = await createClient();
-
-  const { data: message } = await supabase
-    .from("messages")
-    .select("media_storage_path")
-    .eq("id", messageId)
-    .single<Pick<Message, "media_storage_path">>();
-
-  if (!message?.media_storage_path) {
-    return { ok: false, error: "Adjunto no encontrado." };
-  }
-
-  const admin = createAdminClient();
-  const { data, error } = await admin.storage
-    .from("chat-media")
-    .createSignedUrl(message.media_storage_path, 600);
-
-  if (error || !data) {
-    return { ok: false, error: "No se pudo generar la liga (¿archivo inexistente?)." };
-  }
-  return { ok: true, url: data.signedUrl };
 }
 
 export async function closeConversation(conversationId: string) {
