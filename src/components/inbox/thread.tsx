@@ -11,6 +11,8 @@ import {
   CheckCheck,
   Clock,
   FileText,
+  Pause,
+  Play,
   Send,
   User,
   X,
@@ -439,7 +441,7 @@ function MessageBubble({
         ) : m.message_type === "location" ? (
           <LocationContent body={m.body} />
         ) : m.media_storage_path ? (
-          <MediaContent message={m} />
+          <MediaContent message={m} isOutbound={isOutbound} />
         ) : (
           <PendingMedia message={m} now={now} />
         )}
@@ -488,7 +490,13 @@ function PendingMedia({ message: m, now }: { message: Message; now: number }) {
   );
 }
 
-function MediaContent({ message: m }: { message: Message }) {
+function MediaContent({
+  message: m,
+  isOutbound,
+}: {
+  message: Message;
+  isOutbound: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const url = `/api/media/${m.id}`;
 
@@ -507,7 +515,7 @@ function MediaContent({ message: m }: { message: Message }) {
         <img
           src={url}
           alt={mediaLabel(m.message_type)}
-          className="max-w-full rounded-lg"
+          className="block max-w-[260px] rounded-lg"
           onError={() => setFailed(true)}
         />
       </a>
@@ -516,7 +524,19 @@ function MediaContent({ message: m }: { message: Message }) {
 
   if (m.message_type === "audio") {
     return (
-      <audio controls src={url} className="max-w-full" onError={() => setFailed(true)} />
+      <div className="flex flex-col gap-1.5">
+        <AudioPlayer url={url} isOutbound={isOutbound} onError={() => setFailed(true)} />
+        {m.body && (
+          <p
+            className={cn(
+              "text-[12px] leading-[1.4]",
+              isOutbound ? "text-white/90" : "text-ink-2",
+            )}
+          >
+            {m.body}
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -525,7 +545,7 @@ function MediaContent({ message: m }: { message: Message }) {
       <video
         controls
         src={url}
-        className="max-w-full rounded-lg"
+        className="block max-w-[260px] rounded-lg"
         onError={() => setFailed(true)}
       />
     );
@@ -542,6 +562,116 @@ function MediaContent({ message: m }: { message: Message }) {
       {m.body || "Ver documento"}
     </a>
   );
+}
+
+function AudioPlayer({
+  url,
+  isOutbound,
+  onError,
+}: {
+  url: string;
+  isOutbound: boolean;
+  onError: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration || 0);
+    const onEnded = () => {
+      setPlaying(false);
+      setCurrentTime(0);
+    };
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) audio.pause();
+    else audio.play();
+    setPlaying(!playing);
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrentTime(audio.currentTime);
+  };
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  return (
+    <div className="flex w-[210px] items-center gap-2.5">
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onError={onError}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={togglePlay}
+        aria-label={playing ? "Pausar" : "Reproducir"}
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full",
+          isOutbound ? "bg-white text-brand" : "bg-brand text-white",
+        )}
+      >
+        {playing ? (
+          <Pause className="size-3.5 fill-current" />
+        ) : (
+          <Play className="ml-0.5 size-3.5 fill-current" />
+        )}
+      </button>
+      <div
+        onClick={seek}
+        className={cn(
+          "h-1 flex-1 cursor-pointer overflow-hidden rounded-full",
+          isOutbound ? "bg-white/30" : "bg-line-2",
+        )}
+      >
+        <div
+          className={cn(
+            "h-full rounded-full",
+            isOutbound ? "bg-white" : "bg-brand",
+          )}
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+      <span
+        className={cn(
+          "shrink-0 font-mono text-[10.5px] tabular-nums",
+          isOutbound ? "text-white/80" : "text-ink-3",
+        )}
+      >
+        {formatAudioTime(playing || currentTime > 0 ? currentTime : duration)}
+      </span>
+    </div>
+  );
+}
+
+function formatAudioTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function StatusTick({ status }: { status: Message["status"] }) {
