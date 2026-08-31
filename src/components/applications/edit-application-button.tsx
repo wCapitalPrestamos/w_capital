@@ -37,7 +37,7 @@ export function EditApplicationButton({ application: app }: { application: LoanA
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [borrowerType, setBorrowerType] = useState<BorrowerType>(app.borrower_type);
+  const [borrowerType, setBorrowerType] = useState<BorrowerType>(app.borrower_type ?? "personal");
   const [collateral, setCollateral] = useState<CollateralType>(
     app.collateral_type ?? "property",
   );

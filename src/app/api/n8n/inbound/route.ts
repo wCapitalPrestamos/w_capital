@@ -24,7 +24,15 @@ const bodySchema = z.object({
     type: z
       .enum(["text", "image", "audio", "video", "document", "location", "sticker", "other"])
       .default("text"),
-    text: z.string().default(""),
+    // WhatsApp Cloud API limita mensajes de texto a 4096 caracteres; el
+    // tope aquí evita guardar/mandar al LLM un body desproporcionado si
+    // algún canal futuro no respeta ese límite. Mensajes de solo adjunto
+    // (audio/imagen sin caption) llegan con text null desde n8n.
+    text: z
+      .string()
+      .max(4096)
+      .nullish()
+      .transform((v) => v ?? ""),
     media_url: z.string().nullable().optional(),
     media_storage_path: z.string().nullable().optional(),
     timestamp: z.string().optional(),

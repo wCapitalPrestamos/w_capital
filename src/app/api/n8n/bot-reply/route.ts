@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { applyBotAutoResume } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
 
   const { data: conversation } = await db
     .from("conversations")
-    .select("id")
+    .select("*")
     .eq("channel", body.channel)
     .eq("external_thread_id", body.external_thread_id)
     .maybeSingle();
@@ -42,6 +43,11 @@ export async function POST(request: Request) {
       { status: 404 },
     );
   }
+
+  // El bot ya le respondió al cliente pase lo que pase — si la conversación
+  // había quedado "closed"/paused-vencido, refleja que en realidad sigue
+  // activa (mismo criterio que /api/n8n/inbound).
+  await applyBotAutoResume(db, conversation);
 
   const { error } = await db.from("messages").insert({
     conversation_id: conversation.id,

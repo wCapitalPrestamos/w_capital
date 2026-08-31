@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getHandoffPauseHours } from "@/lib/conversations";
+import { applyBotAutoResume, getHandoffPauseHours } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -34,19 +34,23 @@ export async function POST(request: Request) {
 
   const body = parsed.data;
 
-  const { data: conversation } = await db
+  const { data: conversationRow } = await db
     .from("conversations")
-    .select("id, unread_count, status")
+    .select("*")
     .eq("channel", body.channel)
     .eq("external_thread_id", body.external_thread_id)
     .maybeSingle();
 
-  if (!conversation) {
+  if (!conversationRow) {
     return Response.json(
       { ok: false, error: "conversation not found" },
       { status: 404 },
     );
   }
+
+  // Si venía "closed"/paused-vencido, normaliza primero (mismo criterio que
+  // /api/n8n/inbound) — el patch de abajo decide el estado final real.
+  const conversation = await applyBotAutoResume(db, conversationRow);
 
   const shouldPause = body.reason !== "out_of_scope";
 

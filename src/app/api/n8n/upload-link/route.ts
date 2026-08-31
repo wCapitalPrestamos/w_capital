@@ -3,6 +3,12 @@ import { findOrCreateContact } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUploadToken } from "@/lib/upload-tokens";
+import type { LoanApplication } from "@/lib/types";
+
+interface ResolveActiveApplicationResult {
+  application: LoanApplication;
+  is_new: boolean;
+}
 
 // n8n → CRM: el bot pide una liga del portal de documentos para un hilo.
 // Si el contacto no existe se crea (el bot puede pedir la liga antes de
@@ -14,17 +20,12 @@ const bodySchema = z.object({
   // El cliente puede haber dado estos datos de una vez en el mismo mensaje;
   // si no, se quedan en null y el portal / el equipo los completa después.
   name: z.string().trim().min(1).nullish(),
-  requested_amount: z.number().positive().nullish(),
+  // Tope de cordura: esto es lo que el cliente dijo en texto libre (el LLM
+  // lo extrae sin validar), no un monto aprobado — nunca alimenta desembolso.
+  requested_amount: z.number().positive().max(2_000_000).nullish(),
   is_business: z.boolean().nullish(),
   business_name: z.string().trim().min(1).nullish(),
 });
-
-const OPEN_STATUSES = ["draft", "docs_pending", "under_review"];
-
-// Si la solicitud abierta lleva más de esto sin actividad, se considera
-// abandonada: se cancela sola y se abre una nueva (documentos como
-// comprobante de domicilio/ingresos ya no sirven de tan viejos).
-const STALE_AFTER_DAYS = 30;
 
 export async function POST(request: Request) {
   if (!isValidN8nRequest(request)) return unauthorized();
@@ -49,69 +50,27 @@ export async function POST(request: Request) {
     body.name ?? undefined,
   );
 
-  // Solicitud abierta más reciente, o una nueva en docs_pending
-  const { data: existing } = await db
-    .from("loan_applications")
-    .select("id, requested_amount, status, created_at")
-    .eq("contact_id", contact.id)
-    .in("status", OPEN_STATUSES)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Crea o reutiliza la solicitud abierta del contacto de forma atómica
+  // (bloqueo a nivel de fila + advisory lock dentro de la RPC evita
+  // duplicados si Meta reintenta el webhook o el cliente da doble tap).
+  const { data: resolved, error: resolveError } = (await db
+    .rpc("resolve_active_application", {
+      p_contact_id: contact.id,
+      p_borrower_type: body.is_business == null ? null : body.is_business ? "business" : "personal",
+      p_requested_amount: body.requested_amount ?? null,
+      p_business_name: body.business_name ?? null,
+    })
+    .single()) as { data: ResolveActiveApplicationResult | null; error: { message: string } | null };
 
-  const isStale =
-    !!existing &&
-    Date.now() - new Date(existing.created_at).getTime() > STALE_AFTER_DAYS * 86_400_000;
-
-  if (existing && isStale) {
-    await db
-      .from("loan_applications")
-      .update({ status: "cancelled" })
-      .eq("id", existing.id);
-    await db.from("application_status_history").insert({
-      application_id: existing.id,
-      from_status: existing.status,
-      to_status: "cancelled",
-      note: `Cancelada automáticamente: sin actividad por más de ${STALE_AFTER_DAYS} días. El cliente reinició la solicitud.`,
-    });
+  if (resolveError || !resolved) {
+    return Response.json(
+      { ok: false, error: resolveError?.message ?? "resolve failed" },
+      { status: 500 },
+    );
   }
 
-  const reusable = existing && !isStale ? existing : null;
-  let applicationId = reusable?.id;
-  const isNewApplication = !applicationId;
-
-  if (!applicationId) {
-    const { data: created, error } = await db
-      .from("loan_applications")
-      .insert({
-        contact_id: contact.id,
-        status: "docs_pending",
-        requested_amount: body.requested_amount ?? null,
-        borrower_type: body.is_business ? "business" : "personal",
-        business_name: body.is_business ? (body.business_name ?? null) : null,
-      })
-      .select("id")
-      .single();
-    if (error) {
-      return Response.json({ ok: false, error: error.message }, { status: 500 });
-    }
-    applicationId = created.id;
-  } else if (existing) {
-    // El cliente puede haber dado estos datos en un mensaje posterior al que
-    // creó la solicitud (p. ej. respondiendo "es para mi negocio" a la
-    // pregunta del bot) — antes se perdían porque solo se guardaban al crear.
-    const patch: Record<string, unknown> = {};
-    if (body.requested_amount != null && existing.requested_amount == null) {
-      patch.requested_amount = body.requested_amount;
-    }
-    if (body.is_business != null) {
-      patch.borrower_type = body.is_business ? "business" : "personal";
-      patch.business_name = body.is_business ? (body.business_name ?? null) : null;
-    }
-    if (Object.keys(patch).length > 0) {
-      await db.from("loan_applications").update(patch).eq("id", applicationId);
-    }
-  }
+  const applicationId = resolved.application.id;
+  const isNewApplication = resolved.is_new;
 
   const { rawToken, tokenHash } = generateUploadToken();
   const { error: tokenError } = await db.from("upload_tokens").insert({
@@ -130,5 +89,6 @@ export async function POST(request: Request) {
     application_id: applicationId,
     is_new: isNewApplication,
     url: `${base}/subir/${rawToken}`,
+    borrower_type: resolved.application.borrower_type,
   });
 }

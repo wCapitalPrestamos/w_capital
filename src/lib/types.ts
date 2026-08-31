@@ -130,7 +130,7 @@ export interface LoanApplication {
   requested_amount: number | null;
   term_weeks: number | null;
   purpose: string | null;
-  borrower_type: BorrowerType;
+  borrower_type: BorrowerType | null;
   business_name: string | null;
   collateral_type: CollateralType | null;
   collateral_description: string | null;
