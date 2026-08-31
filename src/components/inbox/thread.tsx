@@ -139,6 +139,21 @@ export function Thread({
           setConversation((c) => ({ ...c, ...(payload.new as Conversation) }));
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
+          );
+        },
+      )
       .subscribe();
 
     return () => {
