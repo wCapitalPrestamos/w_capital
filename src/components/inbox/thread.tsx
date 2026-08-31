@@ -645,8 +645,9 @@ function AudioPlayer({
         onClick={togglePlay}
         aria-label={playing ? "Pausar" : "Reproducir"}
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full",
+          "flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-all duration-150 ease-out hover:scale-105 hover:shadow-md active:scale-95",
           isOutbound ? "bg-white text-brand" : "bg-brand text-white",
+          playing && (isOutbound ? "ring-4 ring-white/25" : "ring-4 ring-brand/20"),
         )}
       >
         {playing ? (
@@ -658,16 +659,23 @@ function AudioPlayer({
       <div
         onClick={seek}
         className={cn(
-          "h-1 flex-1 cursor-pointer overflow-hidden rounded-full",
+          "group/bar relative h-1.5 flex-1 cursor-pointer rounded-full transition-[height] duration-150 hover:h-2",
           isOutbound ? "bg-white/30" : "bg-line-2",
         )}
       >
         <div
           className={cn(
-            "h-full rounded-full",
+            "h-full rounded-full transition-[width] duration-150 ease-linear",
             isOutbound ? "bg-white" : "bg-brand",
           )}
           style={{ width: `${progress * 100}%` }}
+        />
+        <div
+          className={cn(
+            "pointer-events-none absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 shadow-sm transition-opacity duration-150 group-hover/bar:opacity-100",
+            isOutbound ? "bg-white" : "bg-brand",
+          )}
+          style={{ left: `${progress * 100}%` }}
         />
       </div>
       <span
