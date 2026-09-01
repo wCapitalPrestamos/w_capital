@@ -11,6 +11,8 @@ import {
   CheckCheck,
   Clock,
   FileText,
+  Loader2,
+  Paperclip,
   Pause,
   Play,
   Send,
@@ -24,6 +26,7 @@ import {
   reassignConversation,
   resolveNeedsHuman,
   returnToBot,
+  sendMediaMessage,
   sendMessage,
   takeConversation,
 } from "@/actions/inbox";
@@ -67,9 +70,11 @@ export function Thread({
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
+  const [attaching, startAttaching] = useTransition();
   const [closing, startClosing] = useTransition();
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
     startClosing(async () => {
@@ -199,6 +204,26 @@ export function Thread({
         setMessages((prev) => prev.filter((m) => m.id !== temp.id));
         setDraft(body);
         toast.error(result.error ?? "No se pudo enviar.");
+      }
+    });
+  };
+
+  const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || attaching || outsideWindow || conversation.status === "bot") return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const toastId = toast.loading("Enviando adjunto…");
+
+    startAttaching(async () => {
+      const result = await sendMediaMessage(conversation.id, formData);
+      toast.dismiss(toastId);
+      if (!result.ok) {
+        toast.error(result.error ?? "No se pudo enviar el adjunto.");
+      } else {
+        setTimeout(scrollToBottom, 50);
       }
     });
   };
@@ -370,6 +395,28 @@ export function Thread({
           </div>
         )}
         <div className="flex items-end gap-2.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+            className="hidden"
+            onChange={handleAttach}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isBotStatus || outsideWindow || attaching}
+            aria-label="Adjuntar archivo"
+            className="size-11 shrink-0 rounded-[14px]"
+          >
+            {attaching ? (
+              <Loader2 className="size-[17px] animate-spin" />
+            ) : (
+              <Paperclip className="size-[17px]" />
+            )}
+          </Button>
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

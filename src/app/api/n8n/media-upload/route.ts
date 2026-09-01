@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHAT_MEDIA_EXT_BY_MIME } from "@/lib/chat-media";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -13,21 +14,6 @@ const bodySchema = z.object({
   mime_type: z.string().min(1),
   file_base64: z.string().min(1),
 });
-
-const EXT_BY_MIME: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "audio/ogg": "ogg",
-  "audio/mpeg": "mp3",
-  "audio/mp4": "m4a",
-  "audio/aac": "aac",
-  "audio/amr": "amr",
-  "video/mp4": "mp4",
-  "video/3gpp": "3gp",
-  "application/pdf": "pdf",
-};
 
 export async function POST(request: Request) {
   if (!isValidN8nRequest(request)) return unauthorized();
@@ -51,7 +37,7 @@ export async function POST(request: Request) {
   // ni el allow-list del bucket hacen match exacto y la subida se rechaza.
   const baseMimeType = mime_type.split(";")[0].trim();
 
-  const ext = EXT_BY_MIME[baseMimeType] ?? "bin";
+  const ext = CHAT_MEDIA_EXT_BY_MIME[baseMimeType] ?? "bin";
   const path = `${channel}/${external_thread_id}/${external_message_id}.${ext}`;
   const buffer = Buffer.from(file_base64, "base64");
 

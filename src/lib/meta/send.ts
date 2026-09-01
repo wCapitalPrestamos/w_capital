@@ -77,6 +77,38 @@ export async function sendWhatsAppText(
   };
 }
 
+export type WhatsAppMediaType = "image" | "audio" | "video" | "document";
+
+export async function sendWhatsAppMedia(
+  waId: string,
+  type: WhatsAppMediaType,
+  link: string,
+  opts?: { filename?: string },
+): Promise<SendResult> {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) return simulatedResult();
+
+  const media: Record<string, string> = { link };
+  if (type === "document" && opts?.filename) media.filename = opts.filename;
+
+  const json = await graphRequest(
+    `${GRAPH}/${phoneNumberId}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: waId,
+      type,
+      [type]: media,
+    },
+    token,
+  );
+
+  return {
+    externalMessageId: json?.messages?.[0]?.id ?? `wa.${crypto.randomUUID()}`,
+    simulated: false,
+  };
+}
+
 export async function sendWhatsAppTemplate(
   waId: string,
   templateName: string,
@@ -149,6 +181,34 @@ export async function sendMessengerText(
       recipient: { id: psid },
       messaging_type: "RESPONSE",
       message: { text },
+    },
+    token,
+  );
+
+  return {
+    externalMessageId: json?.message_id ?? `msg.${crypto.randomUUID()}`,
+    simulated: false,
+  };
+}
+
+export type MessengerMediaType = "image" | "audio" | "video" | "file";
+
+export async function sendMessengerMedia(
+  psid: string,
+  type: MessengerMediaType,
+  url: string,
+): Promise<SendResult> {
+  const token = process.env.MESSENGER_PAGE_TOKEN;
+  if (!token) return simulatedResult();
+
+  const json = await graphRequest(
+    `${GRAPH}/me/messages`,
+    {
+      recipient: { id: psid },
+      messaging_type: "RESPONSE",
+      message: {
+        attachment: { type, payload: { url, is_reusable: true } },
+      },
     },
     token,
   );
