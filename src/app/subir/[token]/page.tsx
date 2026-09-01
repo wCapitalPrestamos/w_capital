@@ -100,7 +100,7 @@ function PortalShell({ children }: { children: React.ReactNode }) {
         <Link href="/terminos" className="underline underline-offset-2 hover:text-foreground">
           términos de servicio
         </Link>
-        . Colosio 158 local 6, Plaza Universidad, Col. Centenario, Hermosillo, Son.
+        . Av. Luis Donaldo Colosio 158, Local 6 (dentro de Plaza Universitaria), C.P. 83260, Hermosillo, Son.
       </footer>
     </main>
   );

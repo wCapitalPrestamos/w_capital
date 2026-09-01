@@ -129,8 +129,8 @@ export default function TerminosPage() {
           <p>
             W Capital S.A. de C.V.
             <br />
-            Av. Luis Donaldo Colosio #158 Local 6, Plaza Universidad,
-            Col. El Centenario, C.P. 83260, Hermosillo, Sonora, México
+            Av. Luis Donaldo Colosio 158, Local 6 (dentro de Plaza Universitaria),
+            C.P. 83260, Hermosillo, Sonora, México
             <br />
             Teléfono:{" "}
             <a href="tel:+526622125007" className="font-medium text-brand hover:underline">

@@ -37,9 +37,8 @@ export default function PrivacidadPage() {
         <Section title="1. Responsable del tratamiento de sus datos personales">
           <p>
             <strong>W Capital S.A. de C.V.</strong> (&ldquo;W Capital&rdquo;, &ldquo;nosotros&rdquo;),
-            con domicilio en Av. Luis Donaldo Colosio #158 Local 6, entre
-            Marsella y Campodónico, Plaza Universidad, Col. El Centenario,
-            C.P. 83260, Hermosillo, Sonora, México, es responsable del uso y
+            con domicilio en Av. Luis Donaldo Colosio 158, Local 6 (dentro de
+            Plaza Universitaria), C.P. 83260, Hermosillo, Sonora, México, es responsable del uso y
             protección de sus datos personales conforme a la Ley Federal de
             Protección de Datos Personales en Posesión de los Particulares
             (LFPDPPP) y su Reglamento.
@@ -156,8 +155,8 @@ export default function PrivacidadPage() {
           <p>
             W Capital S.A. de C.V.
             <br />
-            Av. Luis Donaldo Colosio #158 Local 6, Plaza Universidad,
-            Col. El Centenario, C.P. 83260, Hermosillo, Sonora, México
+            Av. Luis Donaldo Colosio 158, Local 6 (dentro de Plaza Universitaria),
+            C.P. 83260, Hermosillo, Sonora, México
             <br />
             Teléfono:{" "}
             <a href="tel:+526622125007" className="font-medium text-brand hover:underline">
