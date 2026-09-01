@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/applications/application-actions";
 import { ApplicationAssignments } from "@/components/applications/application-assignments";
+import { AuthorizationsCard } from "@/components/applications/authorizations-card";
 import { DocumentsChecklist } from "@/components/applications/documents-checklist";
 import { EditApplicationButton } from "@/components/applications/edit-application-button";
 import { PageHeader } from "@/components/page-header";
@@ -149,6 +150,12 @@ export default async function SolicitudDetailPage({
               )}
             </CardContent>
           </Card>
+
+          <AuthorizationsCard
+            applicationId={app.id}
+            creditAcceptedAt={app.credit_authorization_accepted_at}
+            bureauAcceptedAt={app.bureau_authorization_accepted_at}
+          />
 
           <DocumentsChecklist
             applicationId={app.id}

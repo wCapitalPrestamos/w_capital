@@ -26,9 +26,10 @@ import { docTypeLabels } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/client";
 import type { DocType, DocumentRow } from "@/lib/types";
 
+// La solicitud de crédito y la autorización de buró NO son documentos que se
+// suban — son autorizaciones que el cliente acepta con un check (ver
+// AuthorizationsCard). Solo lo que realmente es un archivo va aquí.
 const BASE_REQUIRED: DocType[] = [
-  "credit_application",
-  "bureau_authorization",
   "ine",
   "proof_of_address",
   "proof_of_income",

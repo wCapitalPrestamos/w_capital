@@ -72,6 +72,9 @@ export interface Contact {
   address: string | null;
   notes: string | null;
   source_channel: SourceChannel;
+  pending_resume_url: string | null;
+  pending_resume_expires_at: string | null;
+  pending_resume_kind: "info_menu" | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +152,8 @@ export interface LoanApplication {
   aval_name: string | null;
   aval_phone: string | null;
   status: ApplicationStatus;
+  credit_authorization_accepted_at: string | null;
+  bureau_authorization_accepted_at: string | null;
   approved_amount: number | null;
   approved_term_weeks: number | null;
   weekly_rate: number;

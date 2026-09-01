@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthorizationsCard } from "@/components/portal/authorizations-card";
 import { PortalUploader } from "@/components/portal/uploader";
 import { validatePortalToken } from "@/lib/portal-tokens";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -6,9 +7,10 @@ import type { DocType, DocumentRow } from "@/lib/types";
 
 export const metadata = { title: "Sube tus documentos · W Capital" };
 
+// La solicitud de crédito y la autorización de buró NO son documentos que se
+// suban — son autorizaciones que el cliente acepta con un check
+// (AuthorizationsCard). Solo lo que realmente es un archivo va aquí.
 const BASE_REQUIRED: DocType[] = [
-  "credit_application",
-  "bureau_authorization",
   "ine",
   "proof_of_address",
   "proof_of_income",
@@ -45,7 +47,9 @@ export default async function PortalPage({ params }: PageProps<"/subir/[token]">
   const [{ data: app }, { data: documents }] = await Promise.all([
     db
       .from("loan_applications")
-      .select("id, has_aval, contact:contacts(full_name)")
+      .select(
+        "id, has_aval, credit_authorization_accepted_at, bureau_authorization_accepted_at, contact:contacts(full_name)",
+      )
       .eq("id", token.application_id)
       .single(),
     db
@@ -62,12 +66,19 @@ export default async function PortalPage({ params }: PageProps<"/subir/[token]">
 
   return (
     <PortalShell>
-      <PortalUploader
-        rawToken={rawToken}
-        requiredDocs={required}
-        initialDocuments={(documents ?? []) as DocumentRow[]}
-        contactName={contactName}
-      />
+      <div className="space-y-4">
+        <AuthorizationsCard
+          rawToken={rawToken}
+          creditAcceptedAt={app?.credit_authorization_accepted_at ?? null}
+          bureauAcceptedAt={app?.bureau_authorization_accepted_at ?? null}
+        />
+        <PortalUploader
+          rawToken={rawToken}
+          requiredDocs={required}
+          initialDocuments={(documents ?? []) as DocumentRow[]}
+          contactName={contactName}
+        />
+      </div>
     </PortalShell>
   );
 }

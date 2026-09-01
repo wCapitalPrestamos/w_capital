@@ -120,6 +120,32 @@ export async function confirmStaffUpload(input: {
   return { ok: true };
 }
 
+// Marca (o revierte) la autorización de solicitud de crédito o de consulta
+// en Buró de Crédito — no son documentos, por eso viven en loan_applications
+// y no en la tabla `documents`. Útil cuando el cliente autorizó en persona.
+export async function setApplicationAuthorization(
+  applicationId: string,
+  type: "credit" | "bureau",
+  accepted: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireProfile();
+  const supabase = await createClient();
+
+  const column =
+    type === "credit"
+      ? "credit_authorization_accepted_at"
+      : "bureau_authorization_accepted_at";
+
+  const { error } = await supabase
+    .from("loan_applications")
+    .update({ [column]: accepted ? new Date().toISOString() : null })
+    .eq("id", applicationId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/solicitudes/${applicationId}`);
+  return { ok: true };
+}
+
 // Genera una liga del portal de documentos para una solicitud
 export async function createUploadLink(
   applicationId: string,

@@ -6,9 +6,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // eligiera Personal/Negocio. No se toca el status (se queda en
 // docs_pending) — sólo se limpia el resume pendiente (ya no sirve, esa
 // ejecución terminó) y se registra la inactividad para que el equipo la vea.
+//
+// resume_url identifica DE QUÉ ejecución viene este timeout. Si el cliente
+// mandó dos mensajes de "quiero un préstamo" sin tocar el primer botón, hay
+// una segunda espera más nueva sobre la misma solicitud — este timeout
+// (el de la primera, ya vieja) no debe pisarla. Por eso solo se limpia y se
+// registra si pending_resume_url todavía coincide con el de esta ejecución;
+// si no coincide, found:false y n8n no manda el aviso de "¿sigue interesado?".
 
 const bodySchema = z.object({
   application_id: z.string().uuid(),
+  resume_url: z.string().url(),
 });
 
 export async function POST(request: Request) {
@@ -29,11 +37,11 @@ export async function POST(request: Request) {
 
   const { data: application } = await db
     .from("loan_applications")
-    .select("id, status")
+    .select("id, status, pending_resume_url")
     .eq("id", body.application_id)
     .maybeSingle();
 
-  if (!application) {
+  if (!application || application.pending_resume_url !== body.resume_url) {
     return Response.json({ ok: true, found: false });
   }
 
