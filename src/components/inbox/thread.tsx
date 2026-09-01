@@ -546,7 +546,7 @@ function MediaContent({
         {m.body && (
           <p
             className={cn(
-              "w-[238px] text-[12px] leading-[1.4]",
+              "mt-2 w-[238px] break-words text-[12px] leading-[1.4]",
               isOutbound ? "text-white/90" : "text-ink-2",
             )}
           >
