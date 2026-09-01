@@ -546,7 +546,7 @@ function MediaContent({
         {m.body && (
           <p
             className={cn(
-              "text-[12px] leading-[1.4]",
+              "w-[238px] text-[12px] leading-[1.4]",
               isOutbound ? "text-white/90" : "text-ink-2",
             )}
           >
@@ -581,6 +581,24 @@ function MediaContent({
   );
 }
 
+function hashSeed(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function makeWaveform(seedStr: string, count = 26): number[] {
+  const seed = hashSeed(seedStr);
+  const bars: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const v = Math.abs(Math.sin(i * 12.9898 + seed * 0.0078233) * 43758.5453) % 1;
+    bars.push(Math.round(4 + v * 18));
+  }
+  return bars;
+}
+
+const SPEEDS = [1, 1.5, 2] as const;
+
 function AudioPlayer({
   url,
   isOutbound,
@@ -594,6 +612,8 @@ function AudioPlayer({
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const bars = useState(() => makeWaveform(url))[0];
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -614,6 +634,10 @@ function AudioPlayer({
     };
   }, []);
 
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  }, [speed]);
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -631,25 +655,26 @@ function AudioPlayer({
     setCurrentTime(audio.currentTime);
   };
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const cycleSpeed = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]);
+  };
+
+  const ratio = duration > 0 ? currentTime / duration : 0;
+  const filledCount = Math.round(ratio * bars.length);
+  const playedColor = isOutbound ? "#ffffff" : "var(--brand)";
+  const unplayedColor = isOutbound ? "rgba(255,255,255,.35)" : "rgba(35,37,39,.14)";
 
   return (
-    <div className="flex w-[210px] items-center gap-2.5">
-      <audio
-        ref={audioRef}
-        src={url}
-        preload="metadata"
-        onError={onError}
-        className="hidden"
-      />
+    <div className="flex w-[238px] items-center gap-2.5">
+      <audio ref={audioRef} src={url} preload="metadata" onError={onError} className="hidden" />
       <button
         type="button"
         onClick={togglePlay}
         aria-label={playing ? "Pausar" : "Reproducir"}
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-all duration-150 ease-out hover:scale-105 hover:shadow-md active:scale-95",
+          "flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-transform duration-150 ease-out hover:scale-105 active:scale-95",
           isOutbound ? "bg-white text-brand" : "bg-brand text-white",
-          playing && (isOutbound ? "ring-4 ring-white/25" : "ring-4 ring-brand/20"),
         )}
       >
         {playing ? (
@@ -658,36 +683,33 @@ function AudioPlayer({
           <Play className="ml-0.5 size-3.5 fill-current" />
         )}
       </button>
-      <div
-        onClick={seek}
-        className={cn(
-          "group/bar relative h-1.5 flex-1 cursor-pointer rounded-full transition-[height] duration-150 hover:h-2",
-          isOutbound ? "bg-white/30" : "bg-line-2",
-        )}
-      >
-        <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-150 ease-linear",
-            isOutbound ? "bg-white" : "bg-brand",
-          )}
-          style={{ width: `${progress * 100}%` }}
-        />
-        <div
-          className={cn(
-            "pointer-events-none absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 shadow-sm transition-opacity duration-150 group-hover/bar:opacity-100",
-            isOutbound ? "bg-white" : "bg-brand",
-          )}
-          style={{ left: `${progress * 100}%` }}
-        />
+      <div onClick={seek} className="relative flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-[2px] overflow-hidden">
+        {bars.map((h, i) => (
+          <div
+            key={i}
+            className="w-[3px] shrink-0 rounded-[2px] transition-colors duration-150"
+            style={{ height: h, background: i < filledCount ? playedColor : unplayedColor }}
+          />
+        ))}
       </div>
       <span
         className={cn(
-          "shrink-0 font-mono text-[10.5px] tabular-nums",
+          "shrink-0 min-w-[30px] text-right font-mono text-[10.5px] tabular-nums",
           isOutbound ? "text-white/80" : "text-ink-3",
         )}
       >
         {formatAudioTime(playing || currentTime > 0 ? currentTime : duration)}
       </span>
+      <button
+        type="button"
+        onClick={cycleSpeed}
+        className={cn(
+          "w-8 shrink-0 rounded-full py-[3px] text-center font-mono text-[10px] font-medium",
+          isOutbound ? "bg-white/20 text-white" : "bg-line-2 text-ink-2",
+        )}
+      >
+        {speed}×
+      </button>
     </div>
   );
 }
