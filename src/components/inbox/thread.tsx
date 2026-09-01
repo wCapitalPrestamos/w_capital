@@ -271,6 +271,8 @@ export function Thread({
             <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-warn-soft px-[11px] text-[11.5px] font-semibold text-warn">
               <AlertCircle className="size-3.5" />
               Requiere atención
+              {conversation.open_attention_count > 1 &&
+                ` (${conversation.open_attention_count})`}
             </span>
           )}
           {isBotStatus ? (

@@ -55,7 +55,9 @@ export async function POST(request: Request) {
   const shouldPause = body.reason !== "out_of_scope";
 
   const patch: Record<string, unknown> = {
-    needs_human: true,
+    // needs_human/open_attention_count los mantiene el trigger de
+    // conversation_attention_events (ver insert más abajo) — así cada
+    // llamada de handoff se acumula en vez de pisar la anterior.
     // Asegura que la conversación resalte en la bandeja
     unread_count: Math.max(1, conversation.unread_count),
   };
@@ -79,6 +81,22 @@ export async function POST(request: Request) {
   if (error) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
+
+  // Vincula el evento al mensaje entrante que lo disparó, si hay uno reciente.
+  const { data: lastInbound } = await db
+    .from("messages")
+    .select("id")
+    .eq("conversation_id", conversation.id)
+    .eq("direction", "inbound")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  await db.from("conversation_attention_events").insert({
+    conversation_id: conversation.id,
+    message_id: lastInbound?.id ?? null,
+    reason: body.reason,
+  });
 
   await db.from("webhook_events").insert({
     source: "n8n:handoff",

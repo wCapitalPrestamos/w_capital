@@ -164,12 +164,16 @@ export async function reassignConversation(
 }
 
 export async function resolveNeedsHuman(conversationId: string) {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  // Solo cierra los pendientes que existían al momento del clic — si llegó
+  // uno nuevo mientras tanto, se queda abierto y el aviso no se pierde
+  // (needs_human/open_attention_count se recalculan solos vía trigger).
   await supabase
-    .from("conversations")
-    .update({ needs_human: false })
-    .eq("id", conversationId);
+    .from("conversation_attention_events")
+    .update({ resolved_at: new Date().toISOString(), resolved_by: profile.id })
+    .eq("conversation_id", conversationId)
+    .is("resolved_at", null);
   revalidatePath(`/inbox/${conversationId}`);
 }
 

@@ -195,6 +195,7 @@ export function ConversationList({
                     <span className="inline-flex h-[19px] items-center gap-1 rounded-full bg-warn-soft px-2 text-[10.5px] font-semibold text-warn">
                       <AlertCircle className="size-[11px]" strokeWidth={2} />
                       Requiere atención
+                      {c.open_attention_count > 1 && ` (${c.open_attention_count})`}
                     </span>
                   )}
                 </div>

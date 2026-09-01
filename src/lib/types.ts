@@ -83,6 +83,7 @@ export interface Conversation {
   external_thread_id: string;
   status: ConversationStatus;
   needs_human: boolean;
+  open_attention_count: number;
   assigned_to: string | null;
   bot_paused_until: string | null;
   human_since: string | null;
@@ -91,6 +92,16 @@ export interface Conversation {
   last_preview: string;
   unread_count: number;
   created_at: string;
+}
+
+export interface ConversationAttentionEvent {
+  id: string;
+  conversation_id: string;
+  message_id: string | null;
+  reason: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
 }
 
 export interface Message {
