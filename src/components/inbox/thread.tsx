@@ -31,6 +31,7 @@ import {
   takeConversation,
 } from "@/actions/inbox";
 import { ChannelIcon } from "@/components/inbox/channel-icon";
+import { VoiceRecorderButton } from "@/components/inbox/voice-recorder-button";
 import { ReassignSelect } from "@/components/reassign-select";
 import { useMinuteNow } from "@/hooks/use-minute-now";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export function Thread({
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
   const [attaching, startAttaching] = useTransition();
+  const [recordingVoice, setRecordingVoice] = useState(false);
   const [closing, startClosing] = useTransition();
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -222,6 +224,22 @@ export function Thread({
       toast.dismiss(toastId);
       if (!result.ok) {
         toast.error(result.error ?? "No se pudo enviar el adjunto.");
+      } else {
+        setTimeout(scrollToBottom, 50);
+      }
+    });
+  };
+
+  const handleSendRecording = (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const toastId = toast.loading("Enviando nota de voz…");
+
+    startAttaching(async () => {
+      const result = await sendMediaMessage(conversation.id, formData);
+      toast.dismiss(toastId);
+      if (!result.ok) {
+        toast.error(result.error ?? "No se pudo enviar la nota de voz.");
       } else {
         setTimeout(scrollToBottom, 50);
       }
@@ -395,57 +413,70 @@ export function Thread({
           </div>
         )}
         <div className="flex items-end gap-2.5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-            className="hidden"
-            onChange={handleAttach}
-          />
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
+          {!recordingVoice && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                className="hidden"
+                onChange={handleAttach}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isBotStatus || outsideWindow || attaching}
+                aria-label="Adjuntar archivo"
+                className="size-11 shrink-0 rounded-[14px]"
+              >
+                {attaching ? (
+                  <Loader2 className="size-[17px] animate-spin" />
+                ) : (
+                  <Paperclip className="size-[17px]" />
+                )}
+              </Button>
+            </>
+          )}
+          <VoiceRecorderButton
             disabled={isBotStatus || outsideWindow || attaching}
-            aria-label="Adjuntar archivo"
-            className="size-11 shrink-0 rounded-[14px]"
-          >
-            {attaching ? (
-              <Loader2 className="size-[17px] animate-spin" />
-            ) : (
-              <Paperclip className="size-[17px]" />
-            )}
-          </Button>
-          <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={
-              isBotStatus
-                ? "El bot está contestando esta conversación"
-                : outsideWindow
-                  ? "Fuera de la ventana de 24 horas"
-                  : `Responder a ${name}…`
-            }
-            disabled={isBotStatus || outsideWindow || sending}
-            className="max-h-36 min-h-11 flex-1 resize-none rounded-[14px]"
-            rows={1}
+            onRecordingChange={setRecordingVoice}
+            onSend={handleSendRecording}
           />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!draft.trim() || isBotStatus || outsideWindow || sending}
-            aria-label="Enviar"
-            className="size-11 rounded-[14px]"
-          >
-            <Send className="size-[17px]" />
-          </Button>
+          {!recordingVoice && (
+            <>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={
+                  isBotStatus
+                    ? "El bot está contestando esta conversación"
+                    : outsideWindow
+                      ? "Fuera de la ventana de 24 horas"
+                      : `Responder a ${name}…`
+                }
+                disabled={isBotStatus || outsideWindow || sending}
+                className="max-h-36 min-h-11 flex-1 resize-none rounded-[14px]"
+                rows={1}
+              />
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!draft.trim() || isBotStatus || outsideWindow || sending}
+                aria-label="Enviar"
+                className="size-11 rounded-[14px]"
+              >
+                <Send className="size-[17px]" />
+              </Button>
+            </>
+          )}
         </div>
         <p className="mx-0.5 mt-[9px] text-[11px] text-ink-3">
           Enter envía · Shift + Enter salta de línea
