@@ -79,6 +79,18 @@ export async function POST(request: Request) {
 
     conversation = await applyBotAutoResume(db, conversation);
 
+    // Último mensaje saliente (bot o asesor) antes de este — le da al
+    // clasificador de IA contexto de un turno para interpretar respuestas
+    // cortas ("sí", "no", "va") a su propia pregunta anterior.
+    const { data: lastOutbound } = await db
+      .from("messages")
+      .select("body")
+      .eq("conversation_id", conversation.id)
+      .eq("direction", "outbound")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     // Insert idempotente: Meta reintenta webhooks y n8n puede duplicar
     const { error: insertError } = await db.from("messages").insert({
       conversation_id: conversation.id,
@@ -111,6 +123,7 @@ export async function POST(request: Request) {
       conversation_id: conversation.id,
       duplicate: isDuplicate,
       bot_active: conversation.status === "bot",
+      last_bot_message: lastOutbound?.body ?? null,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
