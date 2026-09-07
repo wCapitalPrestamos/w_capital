@@ -55,6 +55,7 @@ async function graphRequest(url: string, body: object, token: string) {
 export async function sendWhatsAppText(
   waId: string,
   text: string,
+  opts?: { replyToExternalId?: string },
 ): Promise<SendResult> {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -67,6 +68,9 @@ export async function sendWhatsAppText(
       to: waId,
       type: "text",
       text: { body: text },
+      ...(opts?.replyToExternalId
+        ? { context: { message_id: opts.replyToExternalId } }
+        : {}),
     },
     token,
   );
@@ -83,7 +87,7 @@ export async function sendWhatsAppMedia(
   waId: string,
   type: WhatsAppMediaType,
   link: string,
-  opts?: { filename?: string },
+  opts?: { filename?: string; replyToExternalId?: string },
 ): Promise<SendResult> {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -99,6 +103,9 @@ export async function sendWhatsAppMedia(
       to: waId,
       type,
       [type]: media,
+      ...(opts?.replyToExternalId
+        ? { context: { message_id: opts.replyToExternalId } }
+        : {}),
     },
     token,
   );

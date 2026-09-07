@@ -36,6 +36,7 @@ export function ConversationList({
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
     const refreshOne = async (id: string) => {
       const { data } = await supabase
@@ -43,7 +44,7 @@ export function ConversationList({
         .select("*, contact:contacts(id, full_name, phone)")
         .eq("id", id)
         .single();
-      if (!data) return;
+      if (!data || cancelled) return;
       setConversations((prev) => {
         const rest = prev.filter((c) => c.id !== id);
         return [data as ConversationListItem, ...rest].sort(
@@ -54,6 +55,22 @@ export function ConversationList({
       });
     };
 
+    // Reconcilia toda la lista cuando se pierde algún evento
+    // (canal caído, pestaña en segundo plano, etc.)
+    const resyncAll = async () => {
+      const { data } = await supabase
+        .from("conversations")
+        .select("*, contact:contacts(id, full_name, phone)")
+        .neq("status", "closed")
+        .order("last_message_at", { ascending: false })
+        .limit(100);
+      if (!data || cancelled) return;
+      setConversations(data as ConversationListItem[]);
+    };
+
+    // El cliente de Supabase Realtime ya reconecta el socket y reintenta la
+    // suscripción de cada canal solo; no hace falta (ni conviene) recrear el
+    // canal a mano aquí.
     const channel = supabase
       .channel("inbox-conversations")
       .on(
@@ -68,7 +85,16 @@ export function ConversationList({
       )
       .subscribe();
 
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        resyncAll();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -127,8 +153,13 @@ export function ConversationList({
         )}
         {visible.map((c) => {
           const active = params?.conversationId === c.id;
+          // Trata la conversación abierta como leída de inmediato en la UI —
+          // no espera al eco de Realtime de markConversationRead.
+          const unreadCount = active ? 0 : c.unread_count;
           const name =
-            c.contact?.full_name || formatPhone(c.contact?.phone) || "Sin nombre";
+            c.contact?.full_name ||
+            formatPhone(c.contact?.phone) ||
+            "Sin nombre";
           return (
             <Link
               key={c.id}
@@ -154,16 +185,16 @@ export function ConversationList({
                     {name}
                   </p>
                   <span className="shrink-0 text-[11px] text-ink-3">
-                    {formatRelativeTime(c.last_message_at)}
+                    {formatRelativeTime(c.last_message_at, now)}
                   </span>
                 </div>
                 <div className="mt-[3px] flex items-center justify-between gap-2">
                   <p className="truncate text-xs text-ink-2">
                     {c.last_preview || "…"}
                   </p>
-                  {c.unread_count > 0 && (
+                  {unreadCount > 0 && (
                     <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-[5px] text-[10.5px] font-semibold text-white">
-                      {c.unread_count > 9 ? "9+" : c.unread_count}
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </div>
@@ -188,14 +219,15 @@ export function ConversationList({
                           : "text-ink-3",
                       )}
                     >
-                      tomada {formatRelativeTime(c.human_since)}
+                      tomada {formatRelativeTime(c.human_since, now)}
                     </span>
                   )}
                   {c.needs_human && (
                     <span className="inline-flex h-[19px] items-center gap-1 rounded-full bg-warn-soft px-2 text-[10.5px] font-semibold text-warn">
                       <AlertCircle className="size-[11px]" strokeWidth={2} />
                       Requiere atención
-                      {c.open_attention_count > 1 && ` (${c.open_attention_count})`}
+                      {c.open_attention_count > 1 &&
+                        ` (${c.open_attention_count})`}
                     </span>
                   )}
                 </div>

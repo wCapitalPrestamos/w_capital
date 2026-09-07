@@ -1,15 +1,10 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ContextRail } from "@/components/inbox/context-rail";
+import { ContextRailData } from "@/components/inbox/context-rail-data";
 import { Thread } from "@/components/inbox/thread";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  Contact,
-  Conversation,
-  LoanApplication,
-  Message,
-  Profile,
-} from "@/lib/types";
+import type { Contact, Conversation, Message, Profile } from "@/lib/types";
 
 export default async function ConversationPage({
   params,
@@ -28,7 +23,10 @@ export default async function ConversationPage({
 
   const contactId = conversation.contact.id;
 
-  const [{ data: messages }, { data: profiles }, { data: application }, { data: loans }] =
+  // Solo lo que el hilo necesita para renderizar de inmediato — el contexto
+  // del cliente (solicitud, documentos, historial) se resuelve aparte y se
+  // transmite en su propio <Suspense> más abajo, sin bloquear esto.
+  const [{ data: messages }, { data: profiles }, { data: attentionEvents }] =
     await Promise.all([
       supabase
         .from("messages")
@@ -38,29 +36,12 @@ export default async function ConversationPage({
         .limit(500),
       supabase.from("profiles").select("id, full_name, role"),
       supabase
-        .from("loan_applications")
-        .select("*")
-        .eq("contact_id", contactId)
-        .in("status", ["docs_pending", "under_review", "approved"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle<LoanApplication>(),
-      supabase
-        .from("v_loan_balances")
-        .select("status, days_late, overdue_count")
-        .eq("contact_id", contactId),
+        .from("conversation_attention_events")
+        .select("message_id")
+        .eq("conversation_id", conversationId)
+        .is("resolved_at", null)
+        .not("message_id", "is", null),
     ]);
-
-  let docsCount = 0;
-  let docsPending = 0;
-  if (application) {
-    const { data: docs } = await supabase
-      .from("documents")
-      .select("id, review_status")
-      .eq("application_id", application.id);
-    docsCount = docs?.length ?? 0;
-    docsPending = (docs ?? []).filter((d) => d.review_status === "pending").length;
-  }
 
   const allProfiles = (profiles ?? []) as Pick<Profile, "id" | "full_name" | "role">[];
   const profileNames = Object.fromEntries(
@@ -77,17 +58,27 @@ export default async function ConversationPage({
         conversation={conversation}
         contact={conversation.contact}
         initialMessages={(messages ?? []) as Message[]}
+        initialAttentionMessageIds={(attentionEvents ?? [])
+          .map((e) => e.message_id)
+          .filter((id): id is string => id !== null)}
         profile={profile}
         profileNames={profileNames}
         assignableProfiles={assignableProfiles}
       />
-      <ContextRail
-        contact={conversation.contact}
-        application={application ?? null}
-        docsCount={docsCount}
-        docsPending={docsPending}
-        loans={loans ?? []}
-      />
+      <Suspense fallback={<ContextRailSkeleton />}>
+        <ContextRailData contactId={contactId} contact={conversation.contact} />
+      </Suspense>
     </>
+  );
+}
+
+function ContextRailSkeleton() {
+  return (
+    <aside className="hidden w-[272px] shrink-0 animate-pulse flex-col gap-3.5 overflow-y-auto border-l border-line-2 bg-surface-2 p-5 xl:flex">
+      <div className="h-3 w-32 rounded bg-line-2" />
+      <div className="h-24 rounded-2xl bg-line-2" />
+      <div className="h-24 rounded-2xl bg-line-2" />
+      <div className="h-24 rounded-2xl bg-line-2" />
+    </aside>
   );
 }

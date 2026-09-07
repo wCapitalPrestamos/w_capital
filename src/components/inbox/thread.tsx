@@ -1,20 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Archive,
   AlertCircle,
+  ArrowRight,
   Bot,
   Check,
   CheckCheck,
+  ChevronDown,
   Clock,
   FileText,
   Loader2,
   Paperclip,
   Pause,
   Play,
+  Reply,
   Send,
   User,
   X,
@@ -55,6 +66,7 @@ export function Thread({
   conversation: initialConversation,
   contact,
   initialMessages,
+  initialAttentionMessageIds,
   profile,
   profileNames,
   assignableProfiles,
@@ -62,6 +74,7 @@ export function Thread({
   conversation: Conversation;
   contact: Contact;
   initialMessages: Message[];
+  initialAttentionMessageIds: string[];
   profile: Profile;
   profileNames: Record<string, string>;
   assignableProfiles: { id: string; full_name: string }[];
@@ -69,14 +82,23 @@ export function Thread({
   const router = useRouter();
   const [conversation, setConversation] = useState(initialConversation);
   const [messages, setMessages] = useState(initialMessages);
+  const [attentionMessageIds, setAttentionMessageIds] = useState(
+    () => new Set(initialAttentionMessageIds),
+  );
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
   const [attaching, startAttaching] = useTransition();
   const [recordingVoice, setRecordingVoice] = useState(false);
   const [closing, startClosing] = useTransition();
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [takingOver, startTakeover] = useTransition();
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [attentionCursor, setAttentionCursor] = useState(0);
 
   const handleClose = () => {
     startClosing(async () => {
@@ -86,9 +108,52 @@ export function Thread({
     });
   };
 
+  const handleTake = () => {
+    startTakeover(async () => {
+      try {
+        await takeConversation(conversation.id);
+        setConversation((c) => ({
+          ...c,
+          status: "human",
+          assigned_to: profile.id,
+          human_since: new Date().toISOString(),
+        }));
+      } catch {
+        toast.error("No se pudo tomar la conversación.");
+      }
+    });
+  };
+
+  const handleReturnToBot = () => {
+    startTakeover(async () => {
+      try {
+        await returnToBot(conversation.id);
+        setConversation((c) => ({
+          ...c,
+          status: "bot",
+          assigned_to: null,
+          human_since: null,
+          bot_paused_until: null,
+        }));
+      } catch {
+        toast.error("No se pudo devolver al bot.");
+      }
+    });
+  };
+
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const handleMessagesScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const distanceFromBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowJumpToBottom(distanceFromBottom > 200);
+    },
+    [],
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView();
@@ -98,7 +163,54 @@ export function Thread({
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
+    // Reconcilia el estado local con la base cuando se pierde algún evento
+    // (canal caído, pestaña en segundo plano, etc.)
+    const resync = async () => {
+      const [
+        { data: freshMessages },
+        { data: freshConversation },
+        { data: freshAttention },
+      ] = await Promise.all([
+        supabase
+          .from("messages")
+          .select("*")
+          .eq("conversation_id", conversation.id)
+          .order("created_at", { ascending: true })
+          .limit(500),
+        supabase
+          .from("conversations")
+          .select("*")
+          .eq("id", conversation.id)
+          .single<Conversation>(),
+        supabase
+          .from("conversation_attention_events")
+          .select("message_id")
+          .eq("conversation_id", conversation.id)
+          .is("resolved_at", null)
+          .not("message_id", "is", null),
+      ]);
+      if (cancelled) return;
+      if (freshMessages) {
+        setMessages((prev) => {
+          const pending = prev.filter((m) => m.id.startsWith("temp-"));
+          return [...(freshMessages as Message[]), ...pending];
+        });
+      }
+      if (freshConversation) {
+        setConversation((c) => ({ ...c, ...freshConversation }));
+      }
+      if (freshAttention) {
+        setAttentionMessageIds(
+          new Set(freshAttention.map((e) => e.message_id as string)),
+        );
+      }
+    };
+
+    // El cliente de Supabase Realtime ya reconecta el socket y reintenta la
+    // suscripción de cada canal solo; no hace falta (ni conviene) recrear el
+    // canal a mano aquí.
     const channel = supabase
       .channel(`thread-${conversation.id}`)
       .on(
@@ -161,12 +273,91 @@ export function Thread({
           );
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversation_attention_events",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        (payload) => {
+          const event = payload.new as {
+            message_id: string | null;
+            resolved_at: string | null;
+          };
+          if (!event.message_id) return;
+          setAttentionMessageIds((prev) => {
+            const next = new Set(prev);
+            if (payload.eventType === "INSERT") next.add(event.message_id!);
+            else if (event.resolved_at) next.delete(event.message_id!);
+            return next;
+          });
+        },
+      )
       .subscribe();
 
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        resync();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
       supabase.removeChannel(channel);
     };
   }, [conversation.id, scrollToBottom]);
+
+  const messagesById = useMemo(
+    () => new Map(messages.map((m) => [m.id, m])),
+    [messages],
+  );
+
+  const attentionOrder = useMemo(
+    () =>
+      messages.filter((m) => attentionMessageIds.has(m.id)).map((m) => m.id),
+    [messages, attentionMessageIds],
+  );
+
+  const goToNextAttention = () => {
+    if (attentionOrder.length === 0) return;
+    const idx = attentionCursor % attentionOrder.length;
+    messageRefs.current[attentionOrder[idx]]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    setAttentionCursor(idx + 1);
+  };
+
+  // Referencias estables para que MessageBubble (memoizado) no vuelva a
+  // renderizar las ~500 burbujas en cada cambio ajeno (ej. cada tecla del
+  // compositor) solo porque el callback era una función nueva cada vez.
+  const handleReply = useCallback((message: Message) => {
+    setReplyTarget(message);
+  }, []);
+
+  const handleResolveAttention = useCallback(
+    (messageId: string) => {
+      setAttentionMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+      setConversation((c) => {
+        const nextCount = Math.max(c.open_attention_count - 1, 0);
+        return {
+          ...c,
+          open_attention_count: nextCount,
+          needs_human: nextCount > 0,
+        };
+      });
+      resolveNeedsHuman(conversation.id, messageId);
+    },
+    [conversation.id],
+  );
 
   const now = useMinuteNow();
 
@@ -179,6 +370,8 @@ export function Thread({
   const handleSend = () => {
     const body = draft.trim();
     if (!body || sending) return;
+
+    const replyToId = replyTarget?.id;
 
     const temp: Message = {
       id: `temp-${crypto.randomUUID()}`,
@@ -195,13 +388,15 @@ export function Thread({
       error_detail: null,
       sent_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
+      reply_to_message_id: replyToId ?? null,
     };
     setMessages((prev) => [...prev, temp]);
     setDraft("");
+    setReplyTarget(null);
     setTimeout(scrollToBottom, 50);
 
     startSending(async () => {
-      const result = await sendMessage(conversation.id, body);
+      const result = await sendMessage(conversation.id, body, replyToId);
       if (!result.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== temp.id));
         setDraft(body);
@@ -213,10 +408,12 @@ export function Thread({
   const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || attaching || outsideWindow || conversation.status === "bot") return;
+    if (!file || attaching || outsideWindow || conversation.status === "bot")
+      return;
 
     const formData = new FormData();
     formData.append("file", file);
+    if (replyTarget) formData.append("replyToMessageId", replyTarget.id);
     const toastId = toast.loading("Enviando adjunto…");
 
     startAttaching(async () => {
@@ -225,6 +422,7 @@ export function Thread({
       if (!result.ok) {
         toast.error(result.error ?? "No se pudo enviar el adjunto.");
       } else {
+        setReplyTarget(null);
         setTimeout(scrollToBottom, 50);
       }
     });
@@ -233,6 +431,7 @@ export function Thread({
   const handleSendRecording = (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
+    if (replyTarget) formData.append("replyToMessageId", replyTarget.id);
     const toastId = toast.loading("Enviando nota de voz…");
 
     startAttaching(async () => {
@@ -241,6 +440,7 @@ export function Thread({
       if (!result.ok) {
         toast.error(result.error ?? "No se pudo enviar la nota de voz.");
       } else {
+        setReplyTarget(null);
         setTimeout(scrollToBottom, 50);
       }
     });
@@ -307,42 +507,73 @@ export function Thread({
                   : "text-ink-3",
               )}
             >
-              tomada {formatRelativeTime(conversation.human_since)}
-            </span>
-          )}
-          {conversation.needs_human && (
-            <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-warn-soft px-[11px] text-[11.5px] font-semibold text-warn">
-              <AlertCircle className="size-3.5" />
-              Requiere atención
-              {conversation.open_attention_count > 1 &&
-                ` (${conversation.open_attention_count})`}
+              tomada {formatRelativeTime(conversation.human_since, now)}
             </span>
           )}
           {isBotStatus ? (
-            <Button size="sm" onClick={() => takeConversation(conversation.id)}>
+            <Button size="sm" onClick={handleTake} disabled={takingOver}>
               Atender
             </Button>
           ) : (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => returnToBot(conversation.id)}
+              onClick={handleReturnToBot}
+              disabled={takingOver}
             >
               Devolver al bot
             </Button>
           )}
           {conversation.needs_human && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => resolveNeedsHuman(conversation.id)}
-            >
-              Marcar resuelto
-            </Button>
+            <>
+              <span
+                className="mx-0.5 h-5 w-px shrink-0 bg-line-2"
+                aria-hidden
+              />
+              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-warn-soft px-[11px] text-[11.5px] font-semibold text-warn">
+                <AlertCircle className="size-3.5" />
+                Requiere atención
+                {conversation.open_attention_count > 1 &&
+                  ` (${conversation.open_attention_count})`}
+              </span>
+              {attentionOrder.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-warn/40 text-warn hover:bg-warn-soft"
+                  onClick={goToNextAttention}
+                >
+                  <ArrowRight className="size-3.5" />
+                  Ir al pendiente
+                  {attentionOrder.length > 1 &&
+                    ` (${(attentionCursor % attentionOrder.length) + 1}/${attentionOrder.length})`}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-warn/40 text-warn hover:bg-warn-soft"
+                onClick={() => {
+                  setAttentionMessageIds(new Set());
+                  setConversation((c) => ({
+                    ...c,
+                    open_attention_count: 0,
+                    needs_human: false,
+                  }));
+                  resolveNeedsHuman(conversation.id);
+                }}
+              >
+                <Check className="size-3.5" />
+                Marcar todo resuelto
+              </Button>
+            </>
           )}
           {conversation.status !== "closed" && (
             <>
-              <span className="mx-0.5 h-5 w-px shrink-0 bg-line-2" aria-hidden />
+              <span
+                className="mx-0.5 h-5 w-px shrink-0 bg-line-2"
+                aria-hidden
+              />
               <Button
                 size="sm"
                 variant="outline"
@@ -364,8 +595,8 @@ export function Thread({
             <DialogTitle>¿Cerrar esta conversación?</DialogTitle>
           </DialogHeader>
           <p className="px-7 py-7 text-sm text-muted-foreground">
-            Se archiva fuera de la bandeja activa. Si {name} vuelve a escribir, se
-            reabre sola automáticamente.
+            Se archiva fuera de la bandeja activa. Si {name} vuelve a escribir,
+            se reabre sola automáticamente.
           </p>
           <DialogFooter>
             <Button
@@ -389,11 +620,45 @@ export function Thread({
       </Dialog>
 
       {/* Mensajes */}
-      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]">
-        {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} profileNames={profileNames} />
-        ))}
-        <div ref={bottomRef} />
+      <div className="relative min-h-0 min-w-0">
+        <div
+          ref={messagesRef}
+          onScroll={handleMessagesScroll}
+          className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-y-auto scrollbar-hidden px-6 py-[22px]"
+        >
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              ref={(el) => {
+                messageRefs.current[m.id] = el;
+              }}
+            >
+              <MessageBubble
+                message={m}
+                profileNames={profileNames}
+                needsAttention={attentionMessageIds.has(m.id)}
+                quotedMessage={
+                  m.reply_to_message_id
+                    ? (messagesById.get(m.reply_to_message_id) ?? null)
+                    : null
+                }
+                onReply={handleReply}
+                onResolveAttention={handleResolveAttention}
+              />
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+        {showJumpToBottom && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            aria-label="Bajar hasta el final"
+            className="absolute bottom-4 left-1/2 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-line-2 bg-surface text-ink-2 shadow-card transition-colors hover:text-ink"
+          >
+            <ChevronDown className="size-[18px]" />
+          </button>
+        )}
       </div>
 
       {/* Compositor */}
@@ -401,7 +666,8 @@ export function Thread({
         {isBotStatus && (
           <div className="mb-[11px] flex items-center gap-2.5 rounded-xl bg-line-2 px-[13px] py-2.5 text-xs leading-[1.45] text-ink-2">
             <Bot className="size-[15px] shrink-0" />
-            El bot está activo en esta conversación. Dale &quot;Atender&quot; para tomarla y poder responder.
+            El bot está activo en esta conversación. Dale &quot;Atender&quot;
+            para tomarla y poder responder.
           </div>
         )}
         {!isBotStatus && outsideWindow && (
@@ -410,6 +676,30 @@ export function Thread({
             {conversation.channel === "whatsapp"
               ? "Pasaron más de 24 h del último mensaje del cliente: solo se pueden enviar plantillas aprobadas de WhatsApp."
               : "Pasaron más de 24 h del último mensaje del cliente: Messenger ya no permite responder."}
+          </div>
+        )}
+        {replyTarget && (
+          <div className="mb-[11px] flex items-center gap-2.5 rounded-xl border border-line-2 bg-surface-2 py-2 pl-3 pr-2">
+            <Reply className="size-4 shrink-0 text-ink-3" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold text-ink-2">
+                Respondiendo a{" "}
+                {replyTarget.direction === "inbound" ? name : "tu mensaje"}
+              </p>
+              <p className="truncate text-[12px] text-ink-3">
+                {messagePreviewText(replyTarget)}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => setReplyTarget(null)}
+              aria-label="Cancelar respuesta"
+              className="size-7 shrink-0"
+            >
+              <X className="size-4" />
+            </Button>
           </div>
         )}
         <div className="flex items-end gap-2.5">
@@ -469,7 +759,9 @@ export function Thread({
               <Button
                 size="icon"
                 onClick={handleSend}
-                disabled={!draft.trim() || isBotStatus || outsideWindow || sending}
+                disabled={
+                  !draft.trim() || isBotStatus || outsideWindow || sending
+                }
                 aria-label="Enviar"
                 className="size-11 rounded-[14px]"
               >
@@ -488,12 +780,20 @@ export function Thread({
 
 const PENDING_MEDIA_TIMEOUT_MS = 2 * 60_000;
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message: m,
   profileNames,
+  needsAttention = false,
+  quotedMessage = null,
+  onReply,
+  onResolveAttention,
 }: {
   message: Message;
   profileNames: Record<string, string>;
+  needsAttention?: boolean;
+  quotedMessage?: Message | null;
+  onReply?: (message: Message) => void;
+  onResolveAttention?: (messageId: string) => void;
 }) {
   const now = useMinuteNow();
   const isOutbound = m.direction === "outbound";
@@ -508,18 +808,56 @@ function MessageBubble({
   return (
     <div
       className={cn(
-        "flex min-w-0 w-full",
+        "group flex min-w-0 w-full items-start gap-1.5",
         isOutbound ? "justify-end" : "justify-start",
       )}
     >
+      {!isOutbound && needsAttention && (
+        <button
+          type="button"
+          onClick={() => onResolveAttention?.(m.id)}
+          title="Marcar este mensaje como resuelto"
+          aria-label="Marcar este mensaje como resuelto"
+          className="mt-3 shrink-0 text-warn hover:text-warn/70"
+        >
+          <AlertCircle className="size-3.5" />
+        </button>
+      )}
+      {onReply && !m.id.startsWith("temp-") && (
+        <button
+          type="button"
+          onClick={() => onReply(m)}
+          aria-label="Responder a este mensaje"
+          className={cn(
+            "mt-3 shrink-0 text-ink-3 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100",
+            !isOutbound && "order-last",
+          )}
+        >
+          <Reply className="size-3.5" />
+        </button>
+      )}
       <div
         className={cn(
           "max-w-[74%] rounded-[18px] px-[15px] py-3 text-[13.5px] leading-[1.5] shadow-card",
           isOutbound
             ? "rounded-br-md bg-brand text-white"
-            : "rounded-bl-md border border-line-2 bg-surface",
+            : needsAttention
+              ? "rounded-bl-md border border-warn/40 bg-warn-soft"
+              : "rounded-bl-md border border-line-2 bg-surface",
         )}
       >
+        {quotedMessage && (
+          <p
+            className={cn(
+              "mb-1.5 truncate rounded-md border-l-2 px-2 py-1 text-[12px]",
+              isOutbound
+                ? "border-white/40 bg-white/10 text-white/80"
+                : "border-line-2 bg-surface-2 text-ink-2",
+            )}
+          >
+            {messagePreviewText(quotedMessage)}
+          </p>
+        )}
         {senderLabel && (
           <p
             className={cn(
@@ -552,7 +890,7 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+});
 
 function LocationContent({ body }: { body: string }) {
   const match = body.match(/https:\/\/www\.google\.com\/maps\?q=\S+/);
@@ -620,7 +958,11 @@ function MediaContent({
   if (m.message_type === "audio") {
     return (
       <div className="flex flex-col gap-1.5">
-        <AudioPlayer url={url} isOutbound={isOutbound} onError={() => setFailed(true)} />
+        <AudioPlayer
+          url={url}
+          isOutbound={isOutbound}
+          onError={() => setFailed(true)}
+        />
         {m.body && (
           <p
             className={cn(
@@ -669,7 +1011,8 @@ function makeWaveform(seedStr: string, count = 26): number[] {
   const seed = hashSeed(seedStr);
   const bars: number[] = [];
   for (let i = 0; i < count; i++) {
-    const v = Math.abs(Math.sin(i * 12.9898 + seed * 0.0078233) * 43758.5453) % 1;
+    const v =
+      Math.abs(Math.sin(i * 12.9898 + seed * 0.0078233) * 43758.5453) % 1;
     bars.push(Math.round(4 + v * 18));
   }
   return bars;
@@ -728,7 +1071,10 @@ function AudioPlayer({
     const audio = audioRef.current;
     if (!audio || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const ratio = Math.min(
+      1,
+      Math.max(0, (e.clientX - rect.left) / rect.width),
+    );
     audio.currentTime = ratio * duration;
     setCurrentTime(audio.currentTime);
   };
@@ -741,11 +1087,19 @@ function AudioPlayer({
   const ratio = duration > 0 ? currentTime / duration : 0;
   const filledCount = Math.round(ratio * bars.length);
   const playedColor = isOutbound ? "#ffffff" : "var(--brand)";
-  const unplayedColor = isOutbound ? "rgba(255,255,255,.35)" : "rgba(35,37,39,.14)";
+  const unplayedColor = isOutbound
+    ? "rgba(255,255,255,.35)"
+    : "rgba(35,37,39,.14)";
 
   return (
     <div className="flex w-[238px] items-center gap-2.5">
-      <audio ref={audioRef} src={url} preload="metadata" onError={onError} className="hidden" />
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onError={onError}
+        className="hidden"
+      />
       <button
         type="button"
         onClick={togglePlay}
@@ -761,12 +1115,18 @@ function AudioPlayer({
           <Play className="ml-0.5 size-3.5 fill-current" />
         )}
       </button>
-      <div onClick={seek} className="relative flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-[2px] overflow-hidden">
+      <div
+        onClick={seek}
+        className="relative flex h-6 min-w-0 flex-1 cursor-pointer items-center gap-[2px] overflow-hidden"
+      >
         {bars.map((h, i) => (
           <div
             key={i}
             className="w-[3px] shrink-0 rounded-[2px] transition-colors duration-150"
-            style={{ height: h, background: i < filledCount ? playedColor : unplayedColor }}
+            style={{
+              height: h,
+              background: i < filledCount ? playedColor : unplayedColor,
+            }}
           />
         ))}
       </div>
@@ -819,4 +1179,12 @@ function mediaLabel(type: Message["message_type"]): string {
     other: "Adjunto",
   };
   return labels[type] ?? "Adjunto";
+}
+
+// Vista previa en una línea de un mensaje (cita de respuesta, mensaje
+// citado) — texto tal cual, o la etiqueta del tipo de adjunto.
+function messagePreviewText(m: Message): string {
+  return m.message_type === "text" || m.message_type === "template"
+    ? m.body
+    : mediaLabel(m.message_type);
 }

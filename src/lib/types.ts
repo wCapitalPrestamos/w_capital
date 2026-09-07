@@ -122,6 +122,7 @@ export interface Message {
   error_detail: string | null;
   sent_at: string | null;
   created_at: string;
+  reply_to_message_id: string | null;
 }
 
 export interface Lead {
