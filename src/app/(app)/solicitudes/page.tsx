@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Store } from "lucide-react";
-import { BoardCardMeta, BoardColumn, ClickableCard, boardCardClass } from "@/components/board";
+import {
+  BoardCardMeta,
+  BoardColumn,
+  ClickableCard,
+  boardCardClass,
+} from "@/components/board";
 import { BoardZoom } from "@/components/board-zoom";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationStatusBadge } from "@/components/status-badge";
@@ -47,7 +52,8 @@ export default async function SolicitudesPage() {
           {COLUMNS.map(({ status, dot }) => {
             const columnApps = apps.filter((a) => a.status === status);
             const sum = columnApps.reduce(
-              (a, app) => a + Number(app.approved_amount ?? app.requested_amount ?? 0),
+              (a, app) =>
+                a + Number(app.approved_amount ?? app.requested_amount ?? 0),
               0,
             );
             return (
@@ -79,7 +85,9 @@ export default async function SolicitudesPage() {
                           href={`/clientes/${app.contact.id}`}
                           className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
                         >
-                          {app.contact.full_name || app.contact.phone || "Sin nombre"}
+                          {app.contact.full_name ||
+                            app.contact.phone ||
+                            "Sin nombre"}
                         </Link>
                       ) : (
                         <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
@@ -101,7 +109,7 @@ export default async function SolicitudesPage() {
                             borrowerTypeLabels.personal
                           )
                         }
-                        right={formatRelativeTime(app.updated_at)}
+                        right={formatRelativeTime(app.updated_at, Date.now())}
                       />
                     </ClickableCard>
                   );

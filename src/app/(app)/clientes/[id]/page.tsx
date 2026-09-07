@@ -34,12 +34,16 @@ export default async function ClienteDetailPage({
 }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
   const { from } = await searchParams;
-  const back =
-    (typeof from === "string" && BACK_TARGETS[from]) || {
-      href: "/clientes",
-      label: "Clientes",
-    };
+  const back = (typeof from === "string" && BACK_TARGETS[from]) || {
+    href: "/clientes",
+    label: "Clientes",
+  };
   const supabase = await createClient();
+  // Server Component puro: se ejecuta una vez por request, no se
+  // re-renderiza en cliente — no aplica el problema de idempotencia que
+  // la regla busca prevenir en componentes cliente.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   const { data: contact } = await supabase
     .from("contacts")
@@ -49,35 +53,48 @@ export default async function ClienteDetailPage({
 
   if (!contact) notFound();
 
-  const [{ data: conversations }, { data: applications }, { data: loans }, { data: activeLead }] =
-    await Promise.all([
-      supabase
-        .from("conversations")
-        .select("*")
-        .eq("contact_id", id)
-        .order("last_message_at", { ascending: false }),
-      supabase
-        .from("loan_applications")
-        .select("*")
-        .eq("contact_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("loans")
-        .select("*")
-        .eq("contact_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("leads")
-        .select("stage")
-        .eq("contact_id", id)
-        .neq("stage", "discarded")
-        .maybeSingle<{ stage: LeadStage }>(),
-    ]);
+  const [
+    { data: conversations },
+    { data: applications },
+    { data: loans },
+    { data: activeLead },
+  ] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select("*")
+      .eq("contact_id", id)
+      .order("last_message_at", { ascending: false }),
+    supabase
+      .from("loan_applications")
+      .select("*")
+      .eq("contact_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("loans")
+      .select("*")
+      .eq("contact_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("leads")
+      .select("stage")
+      .eq("contact_id", id)
+      .neq("stage", "discarded")
+      .maybeSingle<{ stage: LeadStage }>(),
+  ]);
 
   return (
     <>
       <PageHeader crumb="Directorio" title={contact.full_name || "Sin nombre"}>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={back.href}><ArrowLeft className="size-4" /> {back.label}</Link>} />
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={
+            <Link href={back.href}>
+              <ArrowLeft className="size-4" /> {back.label}
+            </Link>
+          }
+        />
         {activeLead ? (
           <Link
             href="/leads"
@@ -100,8 +117,8 @@ export default async function ClienteDetailPage({
           <CardContent>
             <ContactEditForm contact={contact} />
             <p className="mt-4 text-xs text-muted-foreground">
-              Canal de origen: {sourceChannelLabels[contact.source_channel]} · Registro:{" "}
-              {formatDate(contact.created_at)}
+              Canal de origen: {sourceChannelLabels[contact.source_channel]} ·
+              Registro: {formatDate(contact.created_at)}
             </p>
           </CardContent>
         </Card>
@@ -127,12 +144,14 @@ export default async function ClienteDetailPage({
                     </span>
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatRelativeTime(c.last_message_at)}
+                    {formatRelativeTime(c.last_message_at, now)}
                   </span>
                 </Link>
               ))}
               {(conversations ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground">Sin conversaciones.</p>
+                <p className="text-sm text-muted-foreground">
+                  Sin conversaciones.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -160,7 +179,9 @@ export default async function ClienteDetailPage({
                 </Link>
               ))}
               {(applications ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground">Sin solicitudes.</p>
+                <p className="text-sm text-muted-foreground">
+                  Sin solicitudes.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -178,7 +199,9 @@ export default async function ClienteDetailPage({
                   href={`/prestamos/${l.id}`}
                   className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent/40"
                 >
-                  <span className="min-w-0 truncate font-medium">{loanFolio(l.folio)}</span>
+                  <span className="min-w-0 truncate font-medium">
+                    {loanFolio(l.folio)}
+                  </span>
                   <span className="min-w-0 truncate text-muted-foreground">
                     {formatMoney(l.principal)}
                   </span>

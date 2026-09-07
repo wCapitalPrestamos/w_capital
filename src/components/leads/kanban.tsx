@@ -27,6 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Chip, type ChipTone } from "@/components/status-badge";
 import { Textarea } from "@/components/ui/textarea";
+import { useMinuteNow } from "@/hooks/use-minute-now";
 import { formatMoney, formatRelativeTime } from "@/lib/format";
 import { leadStageLabels, sourceChannelLabels } from "@/lib/labels";
 import type { Lead, LeadStage, SourceChannel } from "@/lib/types";
@@ -49,7 +50,11 @@ const STAGES: { stage: LeadStage; tone: ChipTone; dot: string }[] = [
   { stage: "discarded", tone: "neutral", dot: "#B4B8BC" },
 ];
 
-export function LeadsKanban({ initialLeads }: { initialLeads: LeadWithContact[] }) {
+export function LeadsKanban({
+  initialLeads,
+}: {
+  initialLeads: LeadWithContact[];
+}) {
   const [leads, setLeads] = useState(initialLeads);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -137,7 +142,13 @@ function KanbanColumn({
         highlight={isOver}
       >
         {leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} tone={tone} stage={stage} onDiscard={onDiscard} />
+          <LeadCard
+            key={lead.id}
+            lead={lead}
+            tone={tone}
+            stage={stage}
+            onDiscard={onDiscard}
+          />
         ))}
       </BoardColumn>
     </div>
@@ -156,14 +167,17 @@ function LeadCard({
   onDiscard: (leadId: string, reason: string) => void;
 }) {
   const router = useRouter();
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: lead.id,
-  });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: lead.id,
+    });
   const [discardOpen, setDiscardOpen] = useState(false);
+  const now = useMinuteNow();
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const goToContact = () => {
-    if (lead.contact?.id) router.push(`/clientes/${lead.contact.id}?from=leads`);
+    if (lead.contact?.id)
+      router.push(`/clientes/${lead.contact.id}?from=leads`);
   };
 
   return (
@@ -238,7 +252,7 @@ function LeadCard({
       </p>
       <BoardCardMeta
         left="Interés declarado"
-        right={formatRelativeTime(lead.updated_at)}
+        right={formatRelativeTime(lead.updated_at, now)}
       />
 
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
@@ -254,12 +268,14 @@ function LeadCard({
             className="grid gap-4 px-7 py-[22px]"
           >
             <p className="text-sm text-muted-foreground">
-              {lead.contact?.full_name || lead.contact?.phone || "Este lead"} ya no
-              seguirá en el tablero activo. Se puede regresar después arrastrándolo
-              desde la columna &quot;Descartado&quot;.
+              {lead.contact?.full_name || lead.contact?.phone || "Este lead"} ya
+              no seguirá en el tablero activo. Se puede regresar después
+              arrastrándolo desde la columna &quot;Descartado&quot;.
             </p>
             <div className="grid gap-2">
-              <Label htmlFor={`discard-reason-${lead.id}`}>Motivo (opcional)</Label>
+              <Label htmlFor={`discard-reason-${lead.id}`}>
+                Motivo (opcional)
+              </Label>
               <Textarea
                 id={`discard-reason-${lead.id}`}
                 name="reason"

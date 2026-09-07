@@ -29,7 +29,10 @@ export function ClickableCard({
         router.push(href);
       }}
       onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && !(e.target as HTMLElement).closest("a, button")) {
+        if (
+          (e.key === "Enter" || e.key === " ") &&
+          !(e.target as HTMLElement).closest("a, button")
+        ) {
           e.preventDefault();
           router.push(href);
         }
@@ -72,10 +75,14 @@ export function BoardColumn({
           className="size-2 shrink-0 rounded-full"
           style={{ background: dotColor }}
         />
-        <h3 className="text-[13px] font-semibold tracking-[-.005em]">{label}</h3>
+        <h3 className="text-[13px] font-semibold tracking-[-.005em]">
+          {label}
+        </h3>
         <span className="font-mono text-[11.5px] text-ink-3">{count}</span>
         <span className="flex-1" />
-        {sum && <span className="font-mono text-[11.5px] text-ink-3">{sum}</span>}
+        {sum && (
+          <span className="font-mono text-[11.5px] text-ink-3">{sum}</span>
+        )}
       </div>
       <div className="flex flex-col gap-2.5">
         {children}

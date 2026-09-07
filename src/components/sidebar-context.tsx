@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 interface SidebarState {
@@ -15,9 +15,16 @@ const SidebarContext = createContext<SidebarState | null>(null);
 const STORAGE_KEY = "wcapital:sidebar-collapsed";
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1",
-  );
+  // Arranca igual en servidor y cliente (evita mismatch de hidratación);
+  // el valor persistido se aplica después de montar.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    // Sincroniza una sola vez con la preferencia guardada — no es una
+    // suscripción reactiva, así que no aplica el patrón de "derivar del
+    // estado externo en cada render" que la regla espera.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem(STORAGE_KEY) === "1") setCollapsed(true);
+  }, []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 

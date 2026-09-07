@@ -6,7 +6,9 @@ const mxn = new Intl.NumberFormat("es-MX", {
   minimumFractionDigits: 2,
 });
 
-export function formatMoney(amount: number | string | null | undefined): string {
+export function formatMoney(
+  amount: number | string | null | undefined,
+): string {
   if (amount === null || amount === undefined) return "—";
   const n = typeof amount === "string" ? Number(amount) : amount;
   if (Number.isNaN(n)) return "—";
@@ -22,7 +24,9 @@ export function parseDateOnly(dateStr: string): Date {
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
-  const date = dateStr.includes("T") ? new Date(dateStr) : parseDateOnly(dateStr);
+  const date = dateStr.includes("T")
+    ? new Date(dateStr)
+    : parseDateOnly(dateStr);
   return date.toLocaleDateString("es-MX", {
     day: "numeric",
     month: "short",
@@ -40,8 +44,14 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
-export function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+// `now` se recibe en vez de leer Date.now() aquí adentro — llamarlo durante
+// el render de un Client Component da un resultado distinto en servidor y
+// cliente (mismatch de hidratación). Los componentes cliente deben pasar
+// useMinuteNow() (0 antes de montar, igual que en el servidor); las páginas
+// servidor puras pueden pasar Date.now() directo.
+export function formatRelativeTime(iso: string, now: number): string {
+  if (now <= 0) return "…";
+  const diff = now - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return "ahora";
   if (minutes < 60) return `hace ${minutes} min`;
@@ -50,7 +60,10 @@ export function formatRelativeTime(iso: string): string {
   const days = Math.floor(hours / 24);
   if (days === 1) return "ayer";
   if (days < 7) return `hace ${days} días`;
-  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+  return new Date(iso).toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 // "526624335276" (52 + 10 dígitos, como lo manda WhatsApp) -> "+52 6624335276"
