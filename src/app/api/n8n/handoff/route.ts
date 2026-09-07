@@ -11,8 +11,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // - "out_of_scope": el bot no supo responder algo puntual, pero el cliente no
 //   pidió un humano → solo se marca needs_human, el bot sigue contestando
 //   todo lo demás con normalidad.
-// - "declined": el cliente indicó que ya no le interesa su solicitud →
-//   además de pausar el bot, se detienen los recordatorios automáticos de
+// - "declined": el cliente indicó que ya no le interesa su solicitud → NO
+//   pausa el bot (igual que "out_of_scope", sigue contestando cualquier otra
+//   pregunta con normalidad), pero detiene los recordatorios automáticos de
 //   sus solicitudes en docs_pending (sin tocar su status — eso lo decide el
 //   equipo, no la IA).
 
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   // /api/n8n/inbound) — el patch de abajo decide el estado final real.
   const conversation = await applyBotAutoResume(db, conversationRow);
 
-  const shouldPause = body.reason !== "out_of_scope";
+  const shouldPause = body.reason !== "out_of_scope" && body.reason !== "declined";
 
   const patch: Record<string, unknown> = {
     // needs_human/open_attention_count los mantiene el trigger de
