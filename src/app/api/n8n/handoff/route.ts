@@ -11,21 +11,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // - "out_of_scope": el bot no supo responder algo puntual, pero el cliente no
 //   pidió un humano → solo se marca needs_human, el bot sigue contestando
 //   todo lo demás con normalidad.
-// - "declined": el cliente indicó que ya no le interesa su solicitud → NO
-//   pausa el bot (igual que "out_of_scope", sigue contestando cualquier otra
-//   pregunta con normalidad), pero detiene los recordatorios automáticos de
-//   sus solicitudes en docs_pending (sin tocar su status — eso lo decide el
-//   equipo, no la IA).
+//
+// Nota: una posible cancelación de solicitud NO se maneja aquí — eso requiere
+// confirmación explícita del cliente (ver /api/n8n/applications/cancel), no
+// una interpretación de la IA sobre este endpoint.
 
 const bodySchema = z.object({
   channel: z.enum(["whatsapp", "messenger"]),
   external_thread_id: z.string().min(1),
-  reason: z
-    .enum(["out_of_scope", "client_requested", "other", "declined"])
-    .default("out_of_scope"),
+  reason: z.enum(["out_of_scope", "client_requested", "other"]).default("out_of_scope"),
 });
-
-const MAX_REMINDERS = 2;
 
 export async function POST(request: Request) {
   if (!isValidN8nRequest(request)) return unauthorized();
@@ -61,7 +56,7 @@ export async function POST(request: Request) {
   // /api/n8n/inbound) — el patch de abajo decide el estado final real.
   const conversation = await applyBotAutoResume(db, conversationRow);
 
-  const shouldPause = body.reason !== "out_of_scope" && body.reason !== "declined";
+  const shouldPause = body.reason !== "out_of_scope";
 
   const patch: Record<string, unknown> = {
     // needs_human/open_attention_count los mantiene el trigger de
@@ -91,17 +86,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  if (body.reason === "declined") {
-    // Detiene los recordatorios automáticos de inmediato, sin tocar el
-    // status — cancelar formalmente la solicitud sigue siendo decisión del
-    // equipo, no de la IA.
-    await db
-      .from("loan_applications")
-      .update({ reminder_count: MAX_REMINDERS })
-      .eq("contact_id", conversation.contact_id)
-      .eq("status", "docs_pending");
-  }
-
   // Vincula el evento al mensaje entrante que lo disparó, si hay uno reciente.
   const { data: lastInbound } = await db
     .from("messages")
@@ -112,11 +96,16 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  await db.from("conversation_attention_events").insert({
-    conversation_id: conversation.id,
-    message_id: lastInbound?.id ?? null,
-    reason: body.reason,
-  });
+  const { error: attentionError } = await db
+    .from("conversation_attention_events")
+    .insert({
+      conversation_id: conversation.id,
+      message_id: lastInbound?.id ?? null,
+      reason: body.reason,
+    });
+  if (attentionError) {
+    console.error("[handoff] no se pudo registrar el evento de atención", attentionError);
+  }
 
   await db.from("webhook_events").insert({
     source: "n8n:handoff",
