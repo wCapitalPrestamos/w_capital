@@ -11,12 +11,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // - "out_of_scope": el bot no supo responder algo puntual, pero el cliente no
 //   pidió un humano → solo se marca needs_human, el bot sigue contestando
 //   todo lo demás con normalidad.
+// - "declined": el cliente indicó que ya no le interesa su solicitud →
+//   además de pausar el bot, se detienen los recordatorios automáticos de
+//   sus solicitudes en docs_pending (sin tocar su status — eso lo decide el
+//   equipo, no la IA).
 
 const bodySchema = z.object({
   channel: z.enum(["whatsapp", "messenger"]),
   external_thread_id: z.string().min(1),
-  reason: z.enum(["out_of_scope", "client_requested", "other"]).default("out_of_scope"),
+  reason: z
+    .enum(["out_of_scope", "client_requested", "other", "declined"])
+    .default("out_of_scope"),
 });
+
+const MAX_REMINDERS = 2;
 
 export async function POST(request: Request) {
   if (!isValidN8nRequest(request)) return unauthorized();
@@ -80,6 +88,17 @@ export async function POST(request: Request) {
 
   if (error) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  if (body.reason === "declined") {
+    // Detiene los recordatorios automáticos de inmediato, sin tocar el
+    // status — cancelar formalmente la solicitud sigue siendo decisión del
+    // equipo, no de la IA.
+    await db
+      .from("loan_applications")
+      .update({ reminder_count: MAX_REMINDERS })
+      .eq("contact_id", conversation.contact_id)
+      .eq("status", "docs_pending");
   }
 
   // Vincula el evento al mensaje entrante que lo disparó, si hay uno reciente.
