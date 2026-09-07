@@ -6,24 +6,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
-export async function createUser(input: {
+export async function inviteUser(input: {
   email: string;
-  password: string;
   full_name: string;
   role: Role;
 }): Promise<{ ok: boolean; error?: string }> {
   await requireRole(["admin"]);
 
-  if (input.password.length < 8) {
-    return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
-  }
-
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
-    email: input.email,
-    password: input.password,
-    email_confirm: true,
-    user_metadata: { full_name: input.full_name, role: input.role },
+  const { error } = await admin.auth.admin.inviteUserByEmail(input.email, {
+    data: { full_name: input.full_name, role: input.role },
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/set-password`,
   });
 
   if (error) return { ok: false, error: error.message };

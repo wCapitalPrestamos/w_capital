@@ -25,7 +25,15 @@ import { NewUserDialog } from "@/components/users/new-user-dialog";
 import { roleLabels } from "@/lib/labels";
 import type { Profile, Role } from "@/lib/types";
 
-export function UsersTable({ profiles, myId }: { profiles: Profile[]; myId: string }) {
+export function UsersTable({
+  profiles,
+  myId,
+  pendingIds,
+}: {
+  profiles: Profile[];
+  myId: string;
+  pendingIds: Set<string>;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -90,13 +98,18 @@ export function UsersTable({ profiles, myId }: { profiles: Profile[]; myId: stri
                   </Select>
                 </TableCell>
                 <TableCell>
-                  {p.active ? (
-                    <Badge className="bg-success/15 text-success border-transparent">
-                      Activa
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Desactivada</Badge>
-                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.active ? (
+                      <Badge className="bg-success/15 text-success border-transparent">
+                        Activa
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Desactivada</Badge>
+                    )}
+                    {pendingIds.has(p.id) && (
+                      <Badge variant="outline">Invitación pendiente</Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
