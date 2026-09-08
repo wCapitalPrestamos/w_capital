@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const { data: applications, error } = await db
     .from("loan_applications")
     .select(
-      "id, created_at, reminder_count, last_reminder_sent_at, contact:contacts(id, full_name)",
+      "id, created_at, reminder_count, last_reminder_sent_at, contact:contacts(id, full_name, no_contactar)",
     )
     .eq("status", "docs_pending")
     .lt("reminder_count", MAX_REMINDERS);
@@ -57,8 +57,12 @@ export async function POST(request: Request) {
   }[] = [];
 
   for (const app of dueApplications) {
-    const contact = app.contact as unknown as { id: string; full_name: string } | null;
-    if (!contact) continue;
+    const contact = app.contact as unknown as {
+      id: string;
+      full_name: string;
+      no_contactar: boolean;
+    } | null;
+    if (!contact || contact.no_contactar) continue;
 
     const { data: conversation } = await db
       .from("conversations")

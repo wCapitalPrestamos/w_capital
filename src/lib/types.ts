@@ -75,6 +75,7 @@ export interface Contact {
   pending_resume_url: string | null;
   pending_resume_expires_at: string | null;
   pending_resume_kind: "info_menu" | null;
+  no_contactar: boolean;
   created_at: string;
   updated_at: string;
 }

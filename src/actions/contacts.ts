@@ -42,6 +42,7 @@ export async function updateContact(
     email?: string | null;
     address?: string | null;
     notes?: string | null;
+    no_contactar?: boolean;
   },
 ): Promise<{ ok: boolean; error?: string }> {
   await requireProfile();

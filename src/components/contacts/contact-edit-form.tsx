@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { updateContact } from "@/actions/contacts";
@@ -10,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Contact } from "@/lib/types";
 
 export function ContactEditForm({ contact }: { contact: Contact }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [pendingNoContactar, startNoContactarTransition] = useTransition();
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
@@ -23,6 +26,22 @@ export function ContactEditForm({ contact }: { contact: Contact }) {
       });
       if (result.ok) toast.success("Cliente actualizado.");
       else toast.error(result.error ?? "No se pudo guardar.");
+    });
+  };
+
+  const handleToggleNoContactar = () => {
+    startNoContactarTransition(async () => {
+      const result = await updateContact(contact.id, {
+        no_contactar: !contact.no_contactar,
+      });
+      if (result.ok) {
+        toast.success(
+          contact.no_contactar
+            ? "Se reanudan los envíos automáticos a este contacto."
+            : "Este contacto ya no recibirá recordatorios ni envíos automáticos.",
+        );
+        router.refresh();
+      } else toast.error(result.error ?? "No se pudo guardar.");
     });
   };
 
@@ -51,6 +70,28 @@ export function ContactEditForm({ contact }: { contact: Contact }) {
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Guardando…" : "Guardar cambios"}
       </Button>
+
+      <div className="mt-1 flex items-center justify-between gap-3 rounded-lg border border-line-2 px-3 py-2.5">
+        <div>
+          <p className="text-[13px] font-medium">No contactar</p>
+          <p className="text-[12px] text-muted-foreground">
+            Excluye a este contacto de recordatorios y envíos automáticos.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant={contact.no_contactar ? "default" : "outline"}
+          disabled={pendingNoContactar}
+          onClick={handleToggleNoContactar}
+        >
+          {pendingNoContactar
+            ? "Guardando…"
+            : contact.no_contactar
+              ? "Activado"
+              : "Desactivado"}
+        </Button>
+      </div>
     </form>
   );
 }
