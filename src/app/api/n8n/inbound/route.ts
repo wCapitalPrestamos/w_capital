@@ -79,6 +79,22 @@ export async function POST(request: Request) {
 
     conversation = await applyBotAutoResume(db, conversation);
 
+    // Señal para que el clasificador de IA (que no tiene memoria de la
+    // conversación) sepa si este mensaje llega a mitad de un intercambio ya
+    // activo — 24h porque coincide con la ventana de servicio al cliente de
+    // WhatsApp Business, un límite ya significativo para este mismo bot.
+    const { data: lastMessage } = await db
+      .from("messages")
+      .select("created_at")
+      .eq("conversation_id", conversation.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const isOngoingConversation = lastMessage
+      ? Date.now() - new Date(lastMessage.created_at).getTime() < 24 * 60 * 60 * 1000
+      : false;
+
     // Insert idempotente: Meta reintenta webhooks y n8n puede duplicar
     const { error: insertError } = await db.from("messages").insert({
       conversation_id: conversation.id,
@@ -111,6 +127,7 @@ export async function POST(request: Request) {
       conversation_id: conversation.id,
       duplicate: isDuplicate,
       bot_active: conversation.status === "bot",
+      is_ongoing_conversation: isOngoingConversation,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
