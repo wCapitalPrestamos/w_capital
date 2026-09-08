@@ -8,9 +8,11 @@ import type { Contact, LoanApplication } from "@/lib/types";
 export async function ContextRailData({
   contactId,
   contact,
+  conversationId,
 }: {
   contactId: string;
   contact: Contact;
+  conversationId: string;
 }) {
   const supabase = await createClient();
 
@@ -47,6 +49,7 @@ export async function ContextRailData({
       docsCount={docsCount}
       docsPending={docsPending}
       loans={loans ?? []}
+      conversationId={conversationId}
     />
   );
 }

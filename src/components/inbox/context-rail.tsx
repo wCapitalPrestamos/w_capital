@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CreateApplicationButton } from "@/components/applications/create-application-button";
 import { ApplicationStatusBadge, Chip } from "@/components/status-badge";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -11,12 +12,14 @@ export function ContextRail({
   docsCount,
   docsPending,
   loans,
+  conversationId,
 }: {
   contact: Contact;
   application: LoanApplication | null;
   docsCount: number;
   docsPending: number;
   loans: Pick<LoanBalance, "status" | "days_late" | "overdue_count">[];
+  conversationId: string;
 }) {
   const activeLoans = loans.filter(
     (l) => l.status === "active" || l.status === "overdue",
@@ -33,6 +36,11 @@ export function ContextRail({
 
       <RailCard
         label="Solicitud activa"
+        href={
+          application
+            ? `/solicitudes/${application.id}?from=inbox&conversationId=${conversationId}`
+            : undefined
+        }
         chip={
           application ? <ApplicationStatusBadge status={application.status} /> : null
         }
@@ -105,14 +113,16 @@ function RailCard({
   chip,
   value,
   hint,
+  href,
 }: {
   label: string;
   chip: React.ReactNode;
   value: React.ReactNode;
   hint: string;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-line-2 bg-surface p-[14px_15px] shadow-card">
+  const content = (
+    <>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <p className="text-[11.5px] tracking-[.06em] uppercase text-ink-3">
           {label}
@@ -121,6 +131,23 @@ function RailCard({
       </div>
       <p className="mt-2 text-[13px] font-medium leading-[1.35]">{value}</p>
       <p className="mt-[5px] text-[11.5px] text-ink-2">{hint}</p>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block rounded-2xl border border-line-2 bg-surface p-[14px_15px] shadow-card transition-colors hover:bg-accent/40"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-line-2 bg-surface p-[14px_15px] shadow-card">
+      {content}
     </div>
   );
 }

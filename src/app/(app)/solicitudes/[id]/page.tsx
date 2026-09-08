@@ -30,8 +30,14 @@ import type {
 
 export default async function SolicitudDetailPage({
   params,
+  searchParams,
 }: PageProps<"/solicitudes/[id]">) {
   const { id } = await params;
+  const { from, conversationId } = await searchParams;
+  const back =
+    from === "inbox" && typeof conversationId === "string"
+      ? { href: `/inbox/${conversationId}`, label: "Conversación" }
+      : { href: "/solicitudes", label: "Pipeline" };
   const profile = await requireProfile();
   const supabase = await createClient();
 
@@ -77,7 +83,7 @@ export default async function SolicitudDetailPage({
           variant="outline"
           size="sm"
           nativeButton={false}
-          render={<Link href="/solicitudes"><ArrowLeft className="size-4" /> Pipeline</Link>}
+          render={<Link href={back.href}><ArrowLeft className="size-4" /> {back.label}</Link>}
         />
       </PageHeader>
 

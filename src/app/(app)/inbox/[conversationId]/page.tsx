@@ -66,7 +66,11 @@ export default async function ConversationPage({
         assignableProfiles={assignableProfiles}
       />
       <Suspense fallback={<ContextRailSkeleton />}>
-        <ContextRailData contactId={contactId} contact={conversation.contact} />
+        <ContextRailData
+          contactId={contactId}
+          contact={conversation.contact}
+          conversationId={conversationId}
+        />
       </Suspense>
     </>
   );
