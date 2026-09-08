@@ -29,6 +29,1013 @@
   "mediaMimeType": "={{ $json.messaging[0].message?.attachments?.[0]?.type === 'image' ? 'image/jpeg' : ($json.messaging[0].message?.attachments?.[0]?.type === 'video' ? 'video/mp4' : ($json.messaging[0].message?.attachments?.[0]?.type === 'audio' ? 'audio/mp4' : ($json.messaging[0].message?.attachments?.[0]?.type === 'file' ? 'application/pdf' : null))) }}",
   "postbackPayload": "={{ $json.messaging[0].postback?.payload ?? $json.messaging[0].message?.quick_reply?.payload ?? null }}"
  },
+ "if_nodes": {
+  "If": {
+   "conds": [
+    {
+     "left": "={{ $json.messages }}",
+     "right": "",
+     "op": "exists",
+     "type": "array"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Extraer datos del mensaje (WA)"
+    ],
+    [
+     "No Operation, do nothing"
+    ]
+   ]
+  },
+  "If - Bot Activo": {
+   "conds": [
+    {
+     "left": "={{ $json.bot_active }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Message a model"
+    ],
+    [
+     "No Operation, do nothing"
+    ]
+   ]
+  },
+  "If - Motivo Humano Messenger": {
+   "conds": [
+    {
+     "left": "={{ $json.motivoHumano }}",
+     "right": "explicita",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Handoff Messenger Explicita"
+    ],
+    [
+     "If - Motivo Declina Messenger"
+    ]
+   ]
+  },
+  "If - Motivo Humano WA": {
+   "conds": [
+    {
+     "left": "={{ $json.motivoHumano }}",
+     "right": "explicita",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Handoff WA Explicita"
+    ],
+    [
+     "If - Motivo Declina WA"
+    ]
+   ]
+  },
+  "If - Canal Recordatorio": {
+   "conds": [
+    {
+     "left": "={{ $json.channel }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "WhatsApp - Recordatorio Documentos"
+    ],
+    [
+     "HTTP Request - Enviar Recordatorio Messenger"
+    ]
+   ]
+  },
+  "IF - Es Requisitos WA": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "requisitos",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Respuesta Requisitos Whatsapp"
+    ],
+    [
+     "If - ¿Es Tasa Negocio? (WA)"
+    ]
+   ]
+  },
+  "IF - Es Requisitos Messenger": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "requisitos",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Respuesta Requisitos Messenger"
+    ],
+    [
+     "If - ¿Es Tasa Negocio? (Messenger)"
+    ]
+   ]
+  },
+  "If - Canal Error IA": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Handoff WA No Puedo"
+    ],
+    [
+     "HTTP Request - Handoff Messenger No Puedo"
+    ]
+   ]
+  },
+  "If - Es Texto": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "text",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "If - No Requiere Respuesta"
+    ],
+    [
+     "If - Es Media Descargable WA"
+    ]
+   ]
+  },
+  "If - Es Media Descargable WA": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    },
+    {
+     "left": "={{ ['image','audio','video','document','sticker'].includes($('NoOp - Antes de IA').item.json.messageType) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "WhatsApp - Descargar Media"
+    ],
+    [
+     "If - Es Media Descargable Messenger"
+    ]
+   ]
+  },
+  "If - Es Media Descargable Messenger": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.canal }}",
+     "right": "messenger",
+     "op": "equals",
+     "type": "string"
+    },
+    {
+     "left": "={{ ['image','audio','video','document','sticker'].includes($('NoOp - Antes de IA').item.json.messageType) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Descargar Media Messenger"
+    ],
+    [
+     "If - Es Ruido Ignorable"
+    ]
+   ]
+  },
+  "If - Es Audio WA": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "audio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "OpenAI - Transcribir Audio WA",
+     "Code - Media a Base64"
+    ],
+    [
+     "Code - Media a Base64"
+    ]
+   ]
+  },
+  "If - Bot Activo (Audio)": {
+   "conds": [
+    {
+     "left": "={{ $json.bot_active }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Message a model (Audio)"
+    ]
+   ]
+  },
+  "If - Hubo Transcripción WA": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "audio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Fin Audio WA"
+    ],
+    [
+     "If - Es Ruido Ignorable"
+    ]
+   ]
+  },
+  "If - Es Audio Messenger": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "audio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "OpenAI - Transcribir Audio Messenger",
+     "Code - Media a Base64 Messenger"
+    ],
+    [
+     "Code - Media a Base64 Messenger"
+    ]
+   ]
+  },
+  "If - Hubo Transcripción Messenger": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "audio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Fin Audio Messenger"
+    ],
+    [
+     "If - Es Ruido Ignorable"
+    ]
+   ]
+  },
+  "If - Es Clic Tipo Préstamo": {
+   "conds": [
+    {
+     "left": "={{ $json.messageType }}",
+     "right": "button",
+     "op": "equals",
+     "type": "string"
+    },
+    {
+     "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('TIPO_') }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    },
+    {
+     "left": "={{ $json.messageType === 'text' && /negocio|empresa|compañ|business|personal/i.test($json.messageText ?? '') }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    },
+    {
+     "left": "={{ $json.messageType === 'interactive' && ($json.interactiveButtonId ?? '').startsWith('TIPO_') }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "or",
+   "outs": [
+    [
+     "Set - Mapear Payload Botón"
+    ],
+    [
+     "If - Es Clic Cancelar Solicitud"
+    ]
+   ]
+  },
+  "If - ¿Pendiente Encontrado?": {
+   "conds": [
+    {
+     "left": "={{ $json.found }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Resume Ejecución Pausada"
+    ],
+    [
+     "If - Fue Clic Real Sin Pendiente"
+    ]
+   ]
+  },
+  "If - ¿Tipo De Préstamo Conocido? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.borrower_type }}",
+     "right": "",
+     "op": "notEmpty",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Respuesta Formulario Whatsapp"
+    ],
+    [
+     "Set - Preparar Espera Tipo Préstamo (WA)"
+    ]
+   ]
+  },
+  "If - ¿Hubo Respuesta? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.body.borrower_type }}",
+     "right": "",
+     "op": "notEmpty",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Mapear Selección (WA)"
+    ],
+    [
+     "HTTP Request - Wait Timeout (WA)"
+    ]
+   ]
+  },
+  "If - ¿Tipo De Préstamo Conocido? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.borrower_type }}",
+     "right": "",
+     "op": "notEmpty",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Respuesta Formulario Messenger"
+    ],
+    [
+     "Set - Preparar Espera Tipo Préstamo (Messenger)"
+    ]
+   ]
+  },
+  "If - ¿Hubo Respuesta? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.body.borrower_type }}",
+     "right": "",
+     "op": "notEmpty",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Mapear Selección (Messenger)"
+    ],
+    [
+     "HTTP Request - Wait Timeout (Messenger)"
+    ]
+   ]
+  },
+  "If - Es Respuesta Válida Tipo Préstamo": {
+   "conds": [
+    {
+     "left": "={{ $json.esRespuestaValida }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Wait Resolve"
+    ],
+    [
+     "HTTP Request - Inbound"
+    ]
+   ]
+  },
+  "If - Fue Clic Real Sin Pendiente": {
+   "conds": [
+    {
+     "left": "={{ ['button','postback'].includes($('NoOp - Antes de IA').item.json.messageType) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Clic Duplicado Ignorado"
+    ],
+    [
+     "HTTP Request - Inbound"
+    ]
+   ]
+  },
+  "If - Es Ruido Ignorable": {
+   "conds": [
+    {
+     "left": "={{ ['reaction','contacts','unknown','system','sticker','image','video','document'].includes($('NoOp - Antes de IA').item.json.messageType) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Ruido Ignorado"
+    ],
+    [
+     "If - Es Ubicación (Ack)"
+    ]
+   ]
+  },
+  "If - Es Ubicación (Ack)": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+     "right": "location",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Acuse Ubicación"
+    ],
+    [
+     "If - Es Media Sin Reconocer (Ack)"
+    ]
+   ]
+  },
+  "If - Es Media Sin Reconocer (Ack)": {
+   "conds": [
+    {
+     "left": "={{ ['image','video','document'].includes($('NoOp - Antes de IA').item.json.messageType) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Acuse Media"
+    ],
+    [
+     "If - Canal Error IA"
+    ]
+   ]
+  },
+  "If - Canal (Ack)": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "WhatsApp - No Puedo Responder",
+     "HTTP Request - Bot Reply WA"
+    ],
+    [
+     "HTTP Request - Enviar Messenger",
+     "HTTP Request - Bot Reply Messenger"
+    ]
+   ]
+  },
+  "If - Posible Abuso": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.messageText ?? '' }}",
+     "right": "estafa|ratero|ladr[oó]n|corrupto|robando|nos rob",
+     "op": "regex",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "If - Canal Abuso"
+    ]
+   ]
+  },
+  "If - Canal Abuso": {
+   "conds": [
+    {
+     "left": "={{ $('NoOp - Antes de IA').item.json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Handoff WA No Puedo"
+    ],
+    [
+     "HTTP Request - Handoff Messenger No Puedo"
+    ]
+   ]
+  },
+  "If - ¿Es Tasa Negocio? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "tasa_negocio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "WhatsApp - Enviar Tabla Micronegocio"
+    ],
+    [
+     "If - ¿Es Servicios? (WA)"
+    ]
+   ]
+  },
+  "If - ¿Es Tasa Negocio? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "tasa_negocio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Texto Tabla Micronegocio Messenger"
+    ],
+    [
+     "If - ¿Es Servicios? (Messenger)"
+    ]
+   ]
+  },
+  "If - Es Clic Menú Info": {
+   "conds": [
+    {
+     "left": "={{ $json.messageType }}",
+     "right": "interactive",
+     "op": "equals",
+     "type": "string"
+    },
+    {
+     "left": "={{ $json.messageType === 'postback' && !(($json.postbackPayload ?? '').startsWith('TIPO_')) && !(($json.postbackPayload ?? '').startsWith('CANCEL_')) }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "or",
+   "outs": [
+    [
+     "Set - Mapear Selección Menú Info"
+    ],
+    [
+     "HTTP Request - Inbound"
+    ]
+   ]
+  },
+  "If - ¿Saludo De Inicio? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.saludo_tipo }}",
+     "right": "inicio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Menú Info WA"
+    ],
+    [
+     "Set - Respuesta FAQ Whatsapp"
+    ]
+   ]
+  },
+  "If - ¿Saludo De Inicio? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.saludo_tipo }}",
+     "right": "inicio",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Menú Info Messenger"
+    ],
+    [
+     "Set - Respuesta FAQ Messenger"
+    ]
+   ]
+  },
+  "If - ¿Timeout Vigente? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.found }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Fin Timeout WA",
+     "Set - Aviso Timeout WA"
+    ]
+   ]
+  },
+  "If - ¿Timeout Vigente? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.found }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "NoOp - Fin Timeout Messenger",
+     "Set - Aviso Timeout Messenger"
+    ]
+   ]
+  },
+  "If - Canal Menú Info": {
+   "conds": [
+    {
+     "left": "={{ $json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Switch - Selección Menú Info (WA)"
+    ],
+    [
+     "Switch - Selección Menú Info (Messenger)"
+    ]
+   ]
+  },
+  "If - ¿Es Personal? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.fuera_tema_tipo }}",
+     "right": "personal",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Respuesta Fuera de tema Personal Whatsapp"
+    ],
+    [
+     "Set - Respuesta Fuera de tema Whatsapp"
+    ]
+   ]
+  },
+  "If - ¿Es Personal? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.fuera_tema_tipo }}",
+     "right": "personal",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Set - Fuera de tema (Personal)"
+    ],
+    [
+     "Set - Fuera de tema"
+    ]
+   ]
+  },
+  "If - Firma Válida Messenger": {
+   "conds": [
+    {
+     "left": "={{ $json.firmaValida }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Respond - Recibido"
+    ],
+    [
+     "Respond - Firma Inválida Messenger"
+    ]
+   ]
+  },
+  "If - Firma Válida WA": {
+   "conds": [
+    {
+     "left": "={{ $json.firmaValida }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "Respond - Recibido WA"
+    ],
+    [
+     "Respond - Firma Inválida WA"
+    ]
+   ]
+  },
+  "If - Motivo Declina WA": {
+   "conds": [
+    {
+     "left": "={{ $json.motivoHumano }}",
+     "right": "declina",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Botón Cancelar WA"
+    ],
+    [
+     "HTTP Request - Handoff WA No Puedo"
+    ]
+   ]
+  },
+  "If - Motivo Declina Messenger": {
+   "conds": [
+    {
+     "left": "={{ $json.motivoHumano }}",
+     "right": "declina",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Botón Cancelar Messenger"
+    ],
+    [
+     "HTTP Request - Handoff Messenger No Puedo"
+    ]
+   ]
+  },
+  "If - Es Clic Cancelar Solicitud": {
+   "conds": [
+    {
+     "left": "={{ $json.messageType === 'interactive' && ($json.interactiveButtonId ?? '').startsWith('CANCEL_') }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    },
+    {
+     "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('CANCEL_') }}",
+     "right": "",
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "or",
+   "outs": [
+    [
+     "Set - Mapear Selección Cancelar"
+    ],
+    [
+     "If - Es Clic Menú Info"
+    ]
+   ]
+  },
+  "If - Canal Cancelar": {
+   "conds": [
+    {
+     "left": "={{ $json.canal }}",
+     "right": "whatsapp",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "If - Confirma Cancelar WA"
+    ],
+    [
+     "If - Confirma Cancelar Messenger"
+    ]
+   ]
+  },
+  "If - Confirma Cancelar WA": {
+   "conds": [
+    {
+     "left": "={{ $json.cancelSelection }}",
+     "right": "si",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Cancelar Solicitud WA"
+    ],
+    [
+     "Set - Respuesta Cancelación Mantenida WA"
+    ]
+   ]
+  },
+  "If - Confirma Cancelar Messenger": {
+   "conds": [
+    {
+     "left": "={{ $json.cancelSelection }}",
+     "right": "si",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Cancelar Solicitud Messenger"
+    ],
+    [
+     "Set - Respuesta Cancelación Mantenida Messenger"
+    ]
+   ]
+  },
+  "If - No Requiere Respuesta": {
+   "conds": [
+    {
+     "left": "={{ $json.is_filler }}",
+     "right": true,
+     "op": "true",
+     "type": "boolean"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "No Operation, do nothing"
+    ],
+    [
+     "If - Bot Activo"
+    ]
+   ]
+  },
+  "If - ¿Es Servicios? (WA)": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "servicios",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Servicios WA"
+    ],
+    [
+     "Set - Respuesta FAQ Whatsapp"
+    ]
+   ]
+  },
+  "If - ¿Es Servicios? (Messenger)": {
+   "conds": [
+    {
+     "left": "={{ $json.topic }}",
+     "right": "servicios",
+     "op": "equals",
+     "type": "string"
+    }
+   ],
+   "comb": "and",
+   "outs": [
+    [
+     "HTTP Request - Enviar Servicios Messenger"
+    ],
+    [
+     "Set - Respuesta FAQ Messenger"
+    ]
+   ]
+  }
+ },
  "if_tipo": {
   "conds": [
    {
@@ -125,43 +1132,37 @@
   ],
   "comb": "and"
  },
- "if_saludo_wa": {
-  "conds": [
-   {
-    "left": "={{ $json.saludo_tipo }}",
-    "right": "inicio",
-    "op": "equals",
-    "type": "string"
-   }
-  ],
-  "comb": "and"
- },
- "if_saludo_mg": {
-  "conds": [
-   {
-    "left": "={{ $json.saludo_tipo }}",
-    "right": "inicio",
-    "op": "equals",
-    "type": "string"
-   }
-  ],
-  "comb": "and"
- },
  "mapper": "={{ ((($json.interactiveButtonId ?? $json.postbackPayload) ?? '').replace('INFO_', '')).toLowerCase() }}",
- "sw_canal": {
+ "sw_accion_wa": {
   "rules": [
    {
-    "left": "={{ $json.canal }}",
-    "right": "messenger"
+    "left": "={{ $json.accion }}",
+    "right": "faq"
    },
    {
-    "left": "={{ $json.canal }}",
-    "right": "whatsapp"
+    "left": "={{ $json.accion }}",
+    "right": "humano"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "fuera_tema"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "ubicacion"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "formulario"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "saludo"
    }
   ],
-  "fallback": "extra"
+  "fallback": "1"
  },
- "sw_accion_wa": {
+ "sw_accion_mg": {
   "rules": [
    {
     "left": "={{ $json.accion }}",
@@ -314,12 +1315,24 @@
    "If - ¿Saludo De Inicio? (WA)"
   ]
  ],
- "conn_saludo_wa": [
+ "conn_accion_mg": [
   [
-   "HTTP Request - Enviar Menú Info WA"
+   "IF - Es Requisitos Messenger"
   ],
   [
-   "Set - Respuesta FAQ Whatsapp"
+   "If - Motivo Humano Messenger"
+  ],
+  [
+   "If - ¿Es Personal? (Messenger)"
+  ],
+  [
+   "Set - Ubicación"
+  ],
+  [
+   "HTTP Request - Upload Link Messenger"
+  ],
+  [
+   "If - ¿Saludo De Inicio? (Messenger)"
   ]
  ],
  "conn_norequiere": [
@@ -329,5 +1342,7 @@
   [
    "If - Bot Activo"
   ]
- ]
+ ],
+ "body_servicios_wa": "={{ { messaging_product: \"whatsapp\", to: $('Set - Extraer datos del mensaje (WA)').item.json.senderId, type: \"interactive\", interactive: { type: \"button\", body: { text: $json.output }, action: { buttons: [ { type: \"reply\", reply: { id: \"INFO_TABLA\", title: \"Tabla de pagos\" } }, { type: \"reply\", reply: { id: \"INFO_TASA\", title: \"Tasa\" } }, { type: \"reply\", reply: { id: \"INFO_SOLICITAR\", title: \"Cómo solicitar\" } } ] } } } }}",
+ "body_servicios_mg": "={{ { recipient: { id: $('Set - Extraer datos del mensaje').item.json.senderId }, messaging_type: \"RESPONSE\", message: { attachment: { type: \"template\", payload: { template_type: \"button\", text: $json.output, buttons: [ { type: \"postback\", title: \"Tabla de pagos\", payload: \"INFO_TABLA\" }, { type: \"postback\", title: \"Tasa\", payload: \"INFO_TASA\" }, { type: \"postback\", title: \"Cómo solicitar\", payload: \"INFO_SOLICITAR\" } ] } } } } }}"
 }

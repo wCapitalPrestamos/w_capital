@@ -78,16 +78,34 @@ function routeAfterInbound(inbound: Ctx, extracted: Ctx): string {
   return "clasificador";
 }
 
-/** Salida del Switch de acción (WhatsApp) -> nodo destino real */
-function accionDestination(parsed: Ctx): string {
-  const idx = spec.sw_accion_wa.rules.findIndex((r) => r.right === parsed.accion);
+type IfNode = { conds: Cond[]; comb: string; outs: string[][] };
+
+/**
+ * Recorre el grafo REAL a partir de un nodo: mientras caiga en un nodo If,
+ * evalúa su condición y sigue la salida que corresponda. Así la prueba
+ * depende del cableado publicado y no de un orden que asumamos aquí.
+ */
+function walkIfChain(start: string, $json: Ctx): string {
+  const ifs = spec.if_nodes as unknown as Record<string, IfNode>;
+  let current = start;
+  for (let i = 0; i < 20; i++) {
+    const node = ifs[current];
+    if (!node) return current;
+    const branch = evalIf(node, $json) ? node.outs[0] : node.outs[1];
+    if (!branch || branch.length === 0) return `${current} (rama sin conectar)`;
+    current = branch[0];
+  }
+  throw new Error(`Ciclo al recorrer desde ${start}`);
+}
+
+/** Salida del Switch de acción -> nodo destino real, siguiendo el cableado */
+function accionDestination(parsed: Ctx, channel: "wa" | "mg" = "wa"): string {
+  const sw = channel === "wa" ? spec.sw_accion_wa : spec.sw_accion_mg;
+  const conns = channel === "wa" ? spec.conn_accion_wa : spec.conn_accion_mg;
+  const idx = sw.rules.findIndex((r) => r.right === parsed.accion);
   // fallbackOutput "1" => rama de humano
-  const out = idx === -1 ? Number(spec.sw_accion_wa.fallback) : idx;
-  const target = spec.conn_accion_wa[out][0];
-  if (target !== "If - ¿Saludo De Inicio? (WA)") return target;
-  return evalIf(spec.if_saludo_wa as never, parsed)
-    ? spec.conn_saludo_wa[0][0]
-    : spec.conn_saludo_wa[1][0];
+  const out = idx === -1 ? Number(sw.fallback) : idx;
+  return walkIfChain(conns[out][0], parsed);
 }
 
 const waText = (text: string): Ctx => ({
@@ -258,17 +276,81 @@ describe("Destino según la clasificación de la IA", () => {
     );
   });
 
-  it("cada acción llega a su rama", () => {
-    expect(accionDestination({ accion: "faq" })).toBe("IF - Es Requisitos WA");
-    expect(accionDestination({ accion: "humano" })).toBe("If - Motivo Humano WA");
-    expect(accionDestination({ accion: "fuera_tema" })).toBe("If - ¿Es Personal? (WA)");
+  it("cada acción llega hasta su nodo final", () => {
     expect(accionDestination({ accion: "ubicacion" })).toBe("Set - Respuesta Ubicación Whatsapp");
     expect(accionDestination({ accion: "formulario" })).toBe("HTTP Request - Upload Link WA");
+    expect(accionDestination({ accion: "fuera_tema" })).toBe("Set - Respuesta Fuera de tema Whatsapp");
+    expect(accionDestination({ accion: "fuera_tema", fuera_tema_tipo: "personal" })).toBe(
+      "Set - Respuesta Fuera de tema Personal Whatsapp",
+    );
   });
 
-  it("una acción inesperada deriva a humano, nunca al silencio", () => {
-    expect(accionDestination({ accion: "algo_raro" })).toBe("If - Motivo Humano WA");
-    expect(accionDestination({ accion: null })).toBe("If - Motivo Humano WA");
+  it("cada motivo de handoff llega a su nodo", () => {
+    expect(accionDestination({ accion: "humano", motivoHumano: "explicita" })).toBe(
+      "HTTP Request - Handoff WA Explicita",
+    );
+    // "declina" nunca cancela solo: manda el botón de confirmación al cliente
+    expect(accionDestination({ accion: "humano", motivoHumano: "declina" })).toBe(
+      "HTTP Request - Enviar Botón Cancelar WA",
+    );
+    expect(accionDestination({ accion: "humano" })).toBe("HTTP Request - Handoff WA No Puedo");
+  });
+
+  it("cada topic del FAQ llega a su rama, en ambos canales", () => {
+    const casos: [string, string, string][] = [
+      // topic          WhatsApp                                   Messenger
+      ["requisitos", "Set - Respuesta Requisitos Whatsapp", "Set - Respuesta Requisitos Messenger"],
+      ["tasa_negocio", "WhatsApp - Enviar Tabla Micronegocio", "HTTP Request - Enviar Texto Tabla Micronegocio Messenger"],
+      ["servicios", "HTTP Request - Enviar Servicios WA", "HTTP Request - Enviar Servicios Messenger"],
+      ["otro", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
+    ];
+    for (const [topic, destinoWA, destinoMG] of casos) {
+      expect(accionDestination({ accion: "faq", topic }, "wa"), topic).toBe(destinoWA);
+      expect(accionDestination({ accion: "faq", topic }, "mg"), topic).toBe(destinoMG);
+    }
+  });
+
+  it("un topic inesperado cae en la respuesta genérica, no en el vacío", () => {
+    expect(accionDestination({ accion: "faq", topic: "algo_nuevo" })).toBe(
+      "Set - Respuesta FAQ Whatsapp",
+    );
+    expect(accionDestination({ accion: "faq", topic: null })).toBe("Set - Respuesta FAQ Whatsapp");
+  });
+
+  it("los botones de servicios respetan los límites de Meta y reusan los payloads del menú", () => {
+    const evalBody = (expr: string, output: string) => {
+      const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+      const $ = () => ({ item: { json: { senderId: "521662" } } });
+      return new Function("$", "$json", `return (${inner});`)($, { output });
+    };
+    const wa = evalBody(spec.body_servicios_wa, "texto de servicios") as never;
+    const botonesWA = (wa as { interactive: { action: { buttons: { reply: { id: string; title: string } }[] } } })
+      .interactive.action.buttons;
+    expect(botonesWA).toHaveLength(3); // WhatsApp no admite más de 3
+    expect(botonesWA.map((b) => b.reply.id)).toEqual(["INFO_TABLA", "INFO_TASA", "INFO_SOLICITAR"]);
+    for (const b of botonesWA) expect(b.reply.title.length).toBeLessThanOrEqual(20);
+
+    const mg = evalBody(spec.body_servicios_mg, "texto de servicios") as never;
+    const botonesMG = (mg as { message: { attachment: { payload: { buttons: { title: string; payload: string }[] } } } })
+      .message.attachment.payload.buttons;
+    expect(botonesMG).toHaveLength(3);
+    expect(botonesMG.map((b) => b.payload)).toEqual(["INFO_TABLA", "INFO_TASA", "INFO_SOLICITAR"]);
+    for (const b of botonesMG) expect(b.title.length).toBeLessThanOrEqual(20);
+  });
+
+  it("los payloads de esos botones son los mismos que ya rutea el menú", () => {
+    // Al hacer clic reusan el flujo existente: sin ruteo nuevo que mantener
+    expect(menuDestination(extract("wa", waButton("INFO_TABLA")), "wa")).toBe(
+      "WhatsApp - Enviar Tabla Micronegocio",
+    );
+    expect(menuDestination(extract("mg", mgPostback("INFO_SOLICITAR")), "mg")).toBe(
+      "HTTP Request - Enviar Cómo Solicitar Messenger",
+    );
+  });
+
+  it("una acción inesperada deriva a un humano, nunca al silencio", () => {
+    expect(accionDestination({ accion: "algo_raro" })).toBe("HTTP Request - Handoff WA No Puedo");
+    expect(accionDestination({ accion: null })).toBe("HTTP Request - Handoff WA No Puedo");
   });
 });
 
