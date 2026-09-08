@@ -1,0 +1,333 @@
+{
+ "wa_fields": {
+  "canal": "whatsapp",
+  "senderId": "={{ ($json.messages[0].from.startsWith('521') && $json.messages[0].from.length === 13) ? $json.messages[0].from.slice(0,2) + $json.messages[0].from.slice(3) : $json.messages[0].from }}",
+  "messageText": "={{ $json.messages[0].text?.body ?? \"\" }}",
+  "messageId": "={{ $json.messages[0].id }}",
+  "contactName": "={{ $json.contacts?.[0]?.profile?.name ?? null }}",
+  "contactPhone": "={{ ($json.messages[0].from.startsWith('521') && $json.messages[0].from.length === 13) ? $json.messages[0].from.slice(0,2) + $json.messages[0].from.slice(3) : $json.messages[0].from }}",
+  "messageType": "={{ $json.messages[0].type }}",
+  "locationLat": "={{ $json.messages[0].location?.latitude ?? null }}",
+  "locationLng": "={{ $json.messages[0].location?.longitude ?? null }}",
+  "locationName": "={{ $json.messages[0].location?.name ?? $json.messages[0].location?.address ?? null }}",
+  "mediaId": "={{ $json.messages[0][$json.messages[0].type]?.id ?? null }}",
+  "mediaMimeType": "={{ $json.messages[0][$json.messages[0].type]?.mime_type ?? null }}",
+  "buttonPayload": "={{ $json.messages[0].button?.payload ?? null }}",
+  "interactiveButtonId": "={{ $json.messages[0].interactive?.button_reply?.id ?? $json.messages[0].interactive?.list_reply?.id ?? null }}"
+ },
+ "mg_fields": {
+  "canal": "messenger",
+  "senderId": "={{ $json.messaging[0].sender.id }}",
+  "messageText": "={{ $json.messaging[0].message?.text ?? '' }}",
+  "messageId": "={{ $json.messaging[0].message?.mid ?? $json.messaging[0].postback?.mid ?? null }}",
+  "contactName": "={{ null }}",
+  "messageType": "={{ ($json.messaging[0].postback || $json.messaging[0].message?.quick_reply) ? 'postback' : ($json.messaging[0].message?.attachments?.[0]?.type ? ($json.messaging[0].message.attachments[0].type === 'file' ? 'document' : ($json.messaging[0].message.attachments[0].type === 'fallback' ? 'sticker' : $json.messaging[0].message.attachments[0].type)) : 'text') }}",
+  "locationLat": "={{ $json.messaging[0].message?.attachments?.[0]?.payload?.coordinates?.lat ?? null }}",
+  "locationLng": "={{ $json.messaging[0].message?.attachments?.[0]?.payload?.coordinates?.long ?? null }}",
+  "locationName": "={{ null }}",
+  "mediaUrl": "={{ $json.messaging[0].message?.attachments?.[0]?.payload?.url ?? null }}",
+  "mediaMimeType": "={{ $json.messaging[0].message?.attachments?.[0]?.type === 'image' ? 'image/jpeg' : ($json.messaging[0].message?.attachments?.[0]?.type === 'video' ? 'video/mp4' : ($json.messaging[0].message?.attachments?.[0]?.type === 'audio' ? 'audio/mp4' : ($json.messaging[0].message?.attachments?.[0]?.type === 'file' ? 'application/pdf' : null))) }}",
+  "postbackPayload": "={{ $json.messaging[0].postback?.payload ?? $json.messaging[0].message?.quick_reply?.payload ?? null }}"
+ },
+ "if_tipo": {
+  "conds": [
+   {
+    "left": "={{ $json.messageType }}",
+    "right": "button",
+    "op": "equals",
+    "type": "string"
+   },
+   {
+    "left": "={{ $json.messageType === 'postback' && !(($json.postbackPayload ?? '').startsWith('INFO_')) && !(($json.postbackPayload ?? '').startsWith('CANCEL_')) }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   },
+   {
+    "left": "={{ $json.messageType === 'text' && /negocio|empresa|compañ|business|personal/i.test($json.messageText ?? '') }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   },
+   {
+    "left": "={{ $json.messageType === 'interactive' && ($json.interactiveButtonId ?? '').startsWith('TIPO_') }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   }
+  ],
+  "comb": "or"
+ },
+ "if_cancel": {
+  "conds": [
+   {
+    "left": "={{ $json.messageType === 'interactive' && ($json.interactiveButtonId ?? '').startsWith('CANCEL_') }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   },
+   {
+    "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('CANCEL_') }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   }
+  ],
+  "comb": "or"
+ },
+ "if_menu": {
+  "conds": [
+   {
+    "left": "={{ $json.messageType }}",
+    "right": "interactive",
+    "op": "equals",
+    "type": "string"
+   },
+   {
+    "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('INFO_') }}",
+    "right": "",
+    "op": "true",
+    "type": "boolean"
+   }
+  ],
+  "comb": "or"
+ },
+ "if_texto": {
+  "conds": [
+   {
+    "left": "={{ $('NoOp - Antes de IA').item.json.messageType }}",
+    "right": "text",
+    "op": "equals",
+    "type": "string"
+   }
+  ],
+  "comb": "and"
+ },
+ "if_norequiere": {
+  "conds": [
+   {
+    "left": "={{ $json.is_filler }}",
+    "right": true,
+    "op": "true",
+    "type": "boolean"
+   }
+  ],
+  "comb": "and"
+ },
+ "if_botactivo": {
+  "conds": [
+   {
+    "left": "={{ $json.bot_active }}",
+    "right": true,
+    "op": "true",
+    "type": "boolean"
+   }
+  ],
+  "comb": "and"
+ },
+ "if_saludo_wa": {
+  "conds": [
+   {
+    "left": "={{ $json.saludo_tipo }}",
+    "right": "inicio",
+    "op": "equals",
+    "type": "string"
+   }
+  ],
+  "comb": "and"
+ },
+ "if_saludo_mg": {
+  "conds": [
+   {
+    "left": "={{ $json.saludo_tipo }}",
+    "right": "inicio",
+    "op": "equals",
+    "type": "string"
+   }
+  ],
+  "comb": "and"
+ },
+ "mapper": "={{ ((($json.interactiveButtonId ?? $json.postbackPayload) ?? '').replace('INFO_', '')).toLowerCase() }}",
+ "sw_canal": {
+  "rules": [
+   {
+    "left": "={{ $json.canal }}",
+    "right": "messenger"
+   },
+   {
+    "left": "={{ $json.canal }}",
+    "right": "whatsapp"
+   }
+  ],
+  "fallback": "extra"
+ },
+ "sw_accion_wa": {
+  "rules": [
+   {
+    "left": "={{ $json.accion }}",
+    "right": "faq"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "humano"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "fuera_tema"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "ubicacion"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "formulario"
+   },
+   {
+    "left": "={{ $json.accion }}",
+    "right": "saludo"
+   }
+  ],
+  "fallback": "1"
+ },
+ "sw_menu_wa": {
+  "rules": [
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "requisitos"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "tasa"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "solicitar"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "quiero_prestamo"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "ubicacion"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "tabla"
+   }
+  ],
+  "fallback": "extra"
+ },
+ "sw_menu_mg": {
+  "rules": [
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "requisitos"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "tasa"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "solicitar"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "quiero_prestamo"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "ubicacion"
+   },
+   {
+    "left": "={{ $json.infoSelection }}",
+    "right": "tabla"
+   }
+  ],
+  "fallback": "extra"
+ },
+ "conn_menu_wa": [
+  [
+   "Set - Respuesta Requisitos Whatsapp"
+  ],
+  [
+   "Set - Respuesta Tasa (Menú WA)"
+  ],
+  [
+   "HTTP Request - Enviar Cómo Solicitar WA"
+  ],
+  [
+   "HTTP Request - Upload Link WA"
+  ],
+  [
+   "Set - Respuesta Ubicación Whatsapp"
+  ],
+  [
+   "WhatsApp - Enviar Tabla Micronegocio"
+  ],
+  [
+   "HTTP Request - Enviar Menú Info WA"
+  ]
+ ],
+ "conn_menu_mg": [
+  [
+   "Set - Respuesta Requisitos Messenger"
+  ],
+  [
+   "Set - Respuesta Tasa (Menú Messenger)"
+  ],
+  [
+   "HTTP Request - Enviar Cómo Solicitar Messenger"
+  ],
+  [
+   "HTTP Request - Upload Link Messenger"
+  ],
+  [
+   "Set - Ubicación"
+  ],
+  [
+   "HTTP Request - Enviar Texto Tabla Micronegocio Messenger"
+  ],
+  [
+   "HTTP Request - Enviar Menú Info Messenger"
+  ]
+ ],
+ "conn_accion_wa": [
+  [
+   "IF - Es Requisitos WA"
+  ],
+  [
+   "If - Motivo Humano WA"
+  ],
+  [
+   "If - ¿Es Personal? (WA)"
+  ],
+  [
+   "Set - Respuesta Ubicación Whatsapp"
+  ],
+  [
+   "HTTP Request - Upload Link WA"
+  ],
+  [
+   "If - ¿Saludo De Inicio? (WA)"
+  ]
+ ],
+ "conn_saludo_wa": [
+  [
+   "HTTP Request - Enviar Menú Info WA"
+  ],
+  [
+   "Set - Respuesta FAQ Whatsapp"
+  ]
+ ],
+ "conn_norequiere": [
+  [
+   "No Operation, do nothing"
+  ],
+  [
+   "If - Bot Activo"
+  ]
+ ]
+}
