@@ -1,16 +1,18 @@
 import { z } from "zod";
-import { applyBotAutoResume, getHandoffPauseHours } from "@/lib/conversations";
+import { applyBotAutoResume } from "@/lib/conversations";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // n8n → CRM: el bot marca la conversación para que un humano la revise.
 //
-// - "client_requested" / "other": el cliente pidió explícitamente hablar con
-//   alguien → se pausa el bot (status: "human") hasta que una asesora lo
-//   retome o pase el tiempo de auto-resume.
-// - "out_of_scope": el bot no supo responder algo puntual, pero el cliente no
-//   pidió un humano → solo se marca needs_human, el bot sigue contestando
-//   todo lo demás con normalidad.
+// Este endpoint NUNCA pasa la conversación a "human" ni pausa el bot: solo
+// registra un evento de atención y la resalta en la bandeja. El cambio a
+// humano es decisión de una persona desde el CRM (tomar la conversación o
+// responderla), y desde ahí se reanuda sola al vencer el timer.
+//
+// Se hace así a propósito: la IA no debe silenciar al bot por su cuenta. Si
+// interpreta mal un mensaje, el cliente se quedaría sin respuesta hasta que
+// alguien lo note. El `reason` solo se guarda en el evento de atención.
 //
 // Nota: una posible cancelación de solicitud NO se maneja aquí — eso requiere
 // confirmación explícita del cliente (ver /api/n8n/applications/cancel), no
@@ -53,33 +55,16 @@ export async function POST(request: Request) {
   }
 
   // Si venía "closed"/paused-vencido, normaliza primero (mismo criterio que
-  // /api/n8n/inbound) — el patch de abajo decide el estado final real.
+  // /api/n8n/inbound).
   const conversation = await applyBotAutoResume(db, conversationRow);
 
-  const shouldPause = body.reason !== "out_of_scope";
-
-  const patch: Record<string, unknown> = {
-    // needs_human/open_attention_count los mantiene el trigger de
-    // conversation_attention_events (ver insert más abajo) — así cada
-    // llamada de handoff se acumula en vez de pisar la anterior.
-    // Asegura que la conversación resalte en la bandeja
-    unread_count: Math.max(1, conversation.unread_count),
-  };
-
-  let pausedUntil: string | null = null;
-  if (shouldPause) {
-    const pauseHours = await getHandoffPauseHours(db);
-    pausedUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
-    patch.status = "human";
-    patch.bot_paused_until = pausedUntil;
-    if (conversation.status !== "human") {
-      patch.human_since = new Date().toISOString();
-    }
-  }
-
+  // needs_human/open_attention_count los mantiene el trigger de
+  // conversation_attention_events (ver insert más abajo) — así cada
+  // llamada de handoff se acumula en vez de pisar la anterior. Aquí solo se
+  // asegura que la conversación resalte en la bandeja.
   const { error } = await db
     .from("conversations")
-    .update(patch)
+    .update({ unread_count: Math.max(1, conversation.unread_count) })
     .eq("id", conversation.id);
 
   if (error) {
@@ -113,5 +98,5 @@ export async function POST(request: Request) {
     processed: true,
   });
 
-  return Response.json({ ok: true, paused: shouldPause, paused_until: pausedUntil });
+  return Response.json({ ok: true });
 }
