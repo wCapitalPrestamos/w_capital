@@ -38,7 +38,7 @@
     "type": "string"
    },
    {
-    "left": "={{ $json.messageType === 'postback' && !(($json.postbackPayload ?? '').startsWith('INFO_')) && !(($json.postbackPayload ?? '').startsWith('CANCEL_')) }}",
+    "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('TIPO_') }}",
     "right": "",
     "op": "true",
     "type": "boolean"
@@ -84,7 +84,7 @@
     "type": "string"
    },
    {
-    "left": "={{ $json.messageType === 'postback' && ($json.postbackPayload ?? '').startsWith('INFO_') }}",
+    "left": "={{ $json.messageType === 'postback' && !(($json.postbackPayload ?? '').startsWith('TIPO_')) && !(($json.postbackPayload ?? '').startsWith('CANCEL_')) }}",
     "right": "",
     "op": "true",
     "type": "boolean"

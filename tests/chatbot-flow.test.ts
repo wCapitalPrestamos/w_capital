@@ -159,6 +159,20 @@ describe("Ruteo de clics de botones/listas", () => {
     expect(routeClick(extract("wa", waText("cuál es la tasa")))).toBe("inbound");
     expect(routeClick(extract("mg", mgText("quiero un préstamo")))).toBe("inbound");
   });
+
+  it("Un postback ajeno cae en el menú, no en tipo de préstamo", () => {
+    // El botón "Get Started" de la página quedó configurado por HubSpot, que
+    // el proyecto ya descartó. Antes caía en el flujo de tipo de préstamo
+    // porque la regla era "cualquier postback que no sea INFO_ ni CANCEL_".
+    expect(routeClick(extract("mg", mgPostback("HUBSPOT_FBM_GET_STARTED")))).toBe("menu_info");
+    // Y cualquier integración futura con su propio payload hace lo mismo
+    expect(routeClick(extract("mg", mgPostback("ALGUNA_OTRA_APP_XYZ")))).toBe("menu_info");
+  });
+
+  it("Un postback ajeno termina reenviando el menú de bienvenida", () => {
+    const d = extract("mg", mgPostback("HUBSPOT_FBM_GET_STARTED"));
+    expect(menuDestination(d, "mg")).toBe("HTTP Request - Enviar Menú Info Messenger");
+  });
 });
 
 describe("Destino de cada opción del menú", () => {
