@@ -4,6 +4,7 @@ import {
   findOrCreateContact,
   findOrCreateConversation,
 } from "@/lib/conversations";
+import { isFillerMessage } from "@/lib/filler-messages";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -95,6 +96,12 @@ export async function POST(request: Request) {
       ? Date.now() - new Date(lastMessage.created_at).getTime() < 24 * 60 * 60 * 1000
       : false;
 
+    // Reacciones/ánimos/risas sueltas: se guardan en el historial pero no
+    // deben disparar respuesta del bot ni el badge de no leídos (ver trigger
+    // handle_new_message, que ahora ignora los mensajes con is_filler).
+    const isFiller =
+      body.message.type === "text" && isFillerMessage(body.message.text);
+
     // Insert idempotente: Meta reintenta webhooks y n8n puede duplicar
     const { error: insertError } = await db.from("messages").insert({
       conversation_id: conversation.id,
@@ -107,6 +114,7 @@ export async function POST(request: Request) {
       external_message_id: body.external_message_id,
       status: "received",
       sent_at: body.message.timestamp ?? new Date().toISOString(),
+      is_filler: isFiller,
     });
 
     const isDuplicate =
@@ -128,6 +136,7 @@ export async function POST(request: Request) {
       duplicate: isDuplicate,
       bot_active: conversation.status === "bot",
       is_ongoing_conversation: isOngoingConversation,
+      is_filler: isFiller,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
