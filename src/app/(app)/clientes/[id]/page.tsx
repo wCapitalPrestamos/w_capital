@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, HandCoins, MessageSquare } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  HandCoins,
+  History,
+  MessageSquare,
+} from "lucide-react";
 import { ContactEditForm } from "@/components/contacts/contact-edit-form";
 import { CreateApplicationButton } from "@/components/applications/create-application-button";
 import { CreateLeadButton } from "@/components/leads/create-lead-button";
@@ -13,10 +19,16 @@ import {
 } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDate, formatMoney, formatRelativeTime } from "@/lib/format";
-import { applicationFolio, loanFolio, sourceChannelLabels } from "@/lib/labels";
+import { formatDate, formatDateTime, formatMoney, formatRelativeTime } from "@/lib/format";
+import {
+  applicationFolio,
+  applicationStatusLabels,
+  loanFolio,
+  sourceChannelLabels,
+} from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type {
+  ApplicationStatusHistory,
   Contact,
   Conversation,
   LeadStage,
@@ -81,6 +93,29 @@ export default async function ClienteDetailPage({
       .neq("stage", "discarded")
       .maybeSingle<{ stage: LeadStage }>(),
   ]);
+
+  const applicationIds = (applications ?? []).map((a) => a.id);
+  const [{ data: history }, { data: profiles }] = applicationIds.length
+    ? await Promise.all([
+        supabase
+          .from("application_status_history")
+          .select("*")
+          .in("application_id", applicationIds)
+          .order("created_at", { ascending: false })
+          .limit(15),
+        supabase.from("profiles").select("id, full_name"),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  const applicationsById = Object.fromEntries(
+    (applications ?? []).map((a) => [a.id, a]),
+  );
+  const profileNames = Object.fromEntries(
+    (profiles ?? []).map((p: { id: string; full_name: string }) => [
+      p.id,
+      p.full_name,
+    ]),
+  );
 
   return (
     <>
@@ -181,6 +216,45 @@ export default async function ClienteDetailPage({
               {(applications ?? []).length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   Sin solicitudes.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="size-4" /> Historial
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {((history ?? []) as ApplicationStatusHistory[]).map((h) => {
+                const app = applicationsById[h.application_id] as
+                  | LoanApplication
+                  | undefined;
+                return (
+                  <div key={h.id} className="border-l-2 border-border pl-3">
+                    <p className="text-sm">
+                      {app ? `${applicationFolio(app.folio)} · ` : ""}
+                      {h.from_status
+                        ? `${applicationStatusLabels[h.from_status]} → ${applicationStatusLabels[h.to_status]}`
+                        : `Creada como ${applicationStatusLabels[h.to_status]}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(h.created_at)}
+                      {h.changed_by
+                        ? ` · ${profileNames[h.changed_by] ?? ""}`
+                        : " · sistema"}
+                    </p>
+                    {h.note && (
+                      <p className="mt-0.5 text-xs italic">{h.note}</p>
+                    )}
+                  </div>
+                );
+              })}
+              {(history ?? []).length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Sin movimientos.
                 </p>
               )}
             </CardContent>
