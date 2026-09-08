@@ -338,6 +338,28 @@ describe("Destino según la clasificación de la IA", () => {
     for (const b of botonesMG) expect(b.title.length).toBeLessThanOrEqual(20);
   });
 
+  it("la respuesta de servicios cierra invitando a elegir, en ambos canales", () => {
+    const evalBody = (expr: string, output: string) => {
+      const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+      const $ = () => ({ item: { json: { senderId: "521662", output } } });
+      return new Function("$", "$json", `return (${inner});`)($, { output });
+    };
+    const texto = "W Capital es una empresa sonorense...";
+    const wa = evalBody(spec.body_servicios_wa, texto) as {
+      interactive: { body: { text: string } };
+    };
+    const mg = evalBody(spec.body_servicios_mg, texto) as {
+      message: { attachment: { payload: { text: string } } };
+    };
+    for (const cuerpo of [wa.interactive.body.text, mg.message.attachment.payload.text]) {
+      expect(cuerpo).toContain(texto);
+      expect(cuerpo.endsWith("¿Sobre qué le gustaría saber?")).toBe(true);
+    }
+    // Límites de Meta para el cuerpo del mensaje con botones
+    expect(wa.interactive.body.text.length).toBeLessThanOrEqual(1024);
+    expect(mg.message.attachment.payload.text.length).toBeLessThanOrEqual(640);
+  });
+
   it("los payloads de esos botones son los mismos que ya rutea el menú", () => {
     // Al hacer clic reusan el flujo existente: sin ruteo nuevo que mantener
     expect(menuDestination(extract("wa", waButton("INFO_TABLA")), "wa")).toBe(
