@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // Piezas visuales compartidas de los tableros kanban (leads y solicitudes)
 
 export const boardCardClass =
-  "rounded-2xl border border-line-2 bg-surface p-[15px_16px] shadow-card cursor-pointer transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-lifted";
+  "rounded-2xl border border-line-2 bg-surface p-[15px_16px] shadow-card cursor-pointer transition-[transform,box-shadow,border-color,background-color] duration-150 hover:-translate-y-0.5 hover:border-brand hover:bg-brand-soft hover:shadow-lifted";
 
 // Tarjeta clickeable con un destino propio (p. ej. la solicitud), que deja
 // pasar el clic a links/botones anidados dentro (p. ej. el nombre del

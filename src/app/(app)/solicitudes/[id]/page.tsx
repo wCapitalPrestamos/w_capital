@@ -99,7 +99,7 @@ export default async function SolicitudDetailPage({
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
               <Detail label="Cliente">
-                <Link href={`/clientes/${app.contact.id}`} className="font-medium hover:underline">
+                <Link href={`/clientes/${app.contact.id}`} className="font-medium hover:text-brand">
                   {app.contact.full_name || app.contact.phone || "Sin nombre"}
                 </Link>
               </Detail>

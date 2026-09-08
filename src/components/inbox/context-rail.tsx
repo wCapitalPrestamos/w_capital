@@ -138,7 +138,7 @@ function RailCard({
     return (
       <Link
         href={href}
-        className="block rounded-2xl border border-line-2 bg-surface p-[14px_15px] shadow-card transition-colors hover:bg-accent/40"
+        className="block rounded-2xl border border-line-2 bg-surface p-[14px_15px] shadow-card transition-colors hover:border-brand hover:bg-brand-soft"
       >
         {content}
       </Link>

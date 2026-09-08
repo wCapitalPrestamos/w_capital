@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Store } from "lucide-react";
 import {
   BoardCardMeta,
@@ -80,20 +79,11 @@ export default async function SolicitudesPage() {
                         </span>
                         <ApplicationStatusBadge status={app.status} />
                       </div>
-                      {app.contact ? (
-                        <Link
-                          href={`/clientes/${app.contact.id}`}
-                          className="mt-2 block truncate text-[14.5px] font-semibold tracking-[-.01em] hover:text-brand"
-                        >
-                          {app.contact.full_name ||
-                            app.contact.phone ||
-                            "Sin nombre"}
-                        </Link>
-                      ) : (
-                        <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
-                          Sin nombre
-                        </p>
-                      )}
+                      <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
+                        {app.contact
+                          ? app.contact.full_name || app.contact.phone || "Sin nombre"
+                          : "Sin nombre"}
+                      </p>
                       <p className="mt-2.5 font-mono text-[15px] tracking-[-.02em]">
                         {amount ? formatMoney(amount) : "Monto por definir"}
                         {weeks ? ` · ${weeks} sem` : ""}
