@@ -31,7 +31,15 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-[rgba(20,19,17,0.45)] duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // Sin backdrop-blur a propósito: combinado con la animación de
+        // opacidad, provoca un flash blanco al cerrar en navegadores basados
+        // en Chromium/Windows (glitch conocido del compositor de GPU al
+        // liberar la capa del blur de golpe).
+        // duration-150 (no 100) a propósito: debe coincidir exactamente con
+        // la del popup (ver DialogContent) — si el overlay termina de
+        // desvanecerse antes que el cuadro, hay una fracción donde una capa
+        // ya desapareció y la otra no, y eso se percibe como un parpadeo.
+        "fixed inset-0 isolate z-50 bg-[rgba(20,19,17,0.45)] duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}

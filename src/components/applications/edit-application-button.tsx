@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +37,10 @@ export function EditApplicationButton({ application: app }: { application: LoanA
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  // El refresh de datos espera a que termine la animación de cierre del
+  // pop-up (onOpenChangeComplete) — hacerlo apenas se guarda provoca un
+  // parpadeo, porque el contenido de fondo cambia a mitad de la transición.
+  const pendingRefreshRef = useRef(false);
   const [borrowerType, setBorrowerType] = useState<BorrowerType>(app.borrower_type ?? "personal");
   const [collateral, setCollateral] = useState<CollateralType>(
     app.collateral_type ?? "property",
@@ -62,8 +66,8 @@ export function EditApplicationButton({ application: app }: { application: LoanA
       });
       if (result.ok) {
         toast.success("Solicitud actualizada.");
+        pendingRefreshRef.current = true;
         setOpen(false);
-        router.refresh();
       } else {
         toast.error(result.error ?? "No se pudo guardar.");
       }
@@ -81,8 +85,18 @@ export function EditApplicationButton({ application: app }: { application: LoanA
       >
         <Pencil className="size-4" />
       </Button>
-      <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
-        <DialogContent className="sm:max-w-[620px]">
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={(isOpen) => {
+          if (isOpen) return;
+          if (pendingRefreshRef.current) {
+            pendingRefreshRef.current = false;
+            router.refresh();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[620px] scrollbar-hidden">
           <DialogHeader>
             <DialogEyebrow>Originación</DialogEyebrow>
             <DialogTitle>Editar solicitud</DialogTitle>
