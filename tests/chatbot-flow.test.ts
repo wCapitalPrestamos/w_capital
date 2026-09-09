@@ -688,6 +688,52 @@ describe("Consulta de solicitud activa (sin crear ninguna solo por preguntar)", 
   });
 });
 
+describe("Confidencialidad: nunca se comparte información de otro cliente", () => {
+  // Cada conversación solo tiene acceso a los datos del contacto identificado
+  // por su propio wa_id/PSID real (nunca por texto que escriba el cliente), así
+  // que técnicamente no hay forma de que el endpoint devuelva datos de otra
+  // persona. Aun así, reforzamos el prompt para que la IA nunca finja acceso a
+  // información de terceros ni intente "buscar" a alguien más por nombre/teléfono.
+  it("la regla de confidencialidad está en las reglas obligatorias, en ambos clasificadores", () => {
+    for (const key of ["prompt_message_a_model", "prompt_message_a_model_audio"] as const) {
+      const p = spec[key] as string;
+      expect(p).toContain("NUNCA compartas, confirmes ni inventes información de OTRA persona");
+      expect(p).toContain("cada conversación solo puede ver los datos de quien está escribiendo en ese momento");
+    }
+  });
+
+  it("consulta_solicitud excluye explícitamente preguntar por la solicitud de otra persona", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain(
+      'Esta categoría es ÚNICAMENTE para la solicitud de quien está escribiendo este mensaje',
+    );
+    expect(p).toContain("mi esposo tiene una solicitud");
+    expect(p).toContain("por confidencialidad nunca se comparte información de otro cliente");
+  });
+
+  it("el segundo modelo (el que redacta la respuesta de consulta_solicitud) también recibe el mismo candado", () => {
+    const p = spec.prompt_respuesta_solicitud_wa as string;
+    expect(p).toContain(
+      "Estos datos son siempre y ÚNICAMENTE de la persona que está escribiendo en este chat en este momento",
+    );
+  });
+
+  it("preguntar por la solicitud de un tercero cae en humano, no en consulta_solicitud (documentado en el prompt)", () => {
+    // No hay forma de simular la clasificación real del modelo en esta prueba
+    // (eso requeriría llamar a la IA), pero si el mensaje SÍ se clasificara
+    // como consulta_solicitud, el endpoint solo puede devolver datos del
+    // wa_id/PSID real del remitente — nunca de un tercero mencionado por texto.
+    // Esta prueba confirma que el candado está documentado explícitamente para
+    // que el modelo nunca tome esa ruta ante una pregunta sobre un tercero.
+    const p = spec.prompt_message_a_model as string;
+    const idx = p.indexOf("consulta_solicitud");
+    const seccion = p.slice(idx, p.indexOf('- "humano"', idx));
+    expect(seccion).toContain("OTRA persona");
+    expect(seccion).toContain('NUNCA uses "consulta_solicitud"');
+    expect(seccion).toContain('usa "humano" con "motivo": "no_puedo_responder"');
+  });
+});
+
 describe("Ubicación combinada con otra pregunta (pide_ubicacion)", () => {
   const evalAppend = (expr: string, base: string) => {
     const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
