@@ -915,3 +915,142 @@ describe("Los links nunca se mandan como texto plano: siempre como botón nativo
     expect(body.message.attachment?.payload.buttons[0].url).toBe("https://crm.wcapital.mx/subir/xyz");
   });
 });
+
+describe("Modificar solicitud (monto/tipo): siempre pasa por confirmación con botón", () => {
+  it("editar_solicitud llega a consultar la solicitud real, en ambos canales", () => {
+    expect(accionDestination({ accion: "editar_solicitud", campoEditar: "monto", valorEditar: 5000 }, "wa")).toBe(
+      "HTTP Request - Consultar Solicitud Editar WA",
+    );
+    expect(accionDestination({ accion: "editar_solicitud", campoEditar: "tipo", valorEditar: "personal" }, "mg")).toBe(
+      "HTTP Request - Consultar Solicitud Editar Messenger",
+    );
+  });
+
+  it("sin solicitud activa, no se ofrece ningún cambio — invita a iniciar una", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - ¿Tiene Solicitud Activa Editar? (WA)"].outs[1]).toEqual([
+      "Set - Respuesta Sin Solicitud Editar WA",
+    ]);
+    expect(gate["If - ¿Tiene Solicitud Activa Editar? (Messenger)"].outs[1]).toEqual([
+      "Set - Respuesta Sin Solicitud Editar Messenger",
+    ]);
+  });
+
+  it("con solicitud activa, el siguiente paso es preparar la confirmación (nunca aplicar directo)", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - ¿Tiene Solicitud Activa Editar? (WA)"].outs[0]).toEqual([
+      "Set - Preparar Confirmación Edición WA",
+    ]);
+  });
+
+  it("el prompt nunca deja que la IA aplique el cambio ella misma — solo identifica qué cambiar", () => {
+    const p = spec.prompt_message_a_model as string;
+    const idx = p.indexOf('"editar_solicitud": el cliente');
+    const seccion = p.slice(idx, p.indexOf('- "humano"', idx));
+    expect(seccion).toContain("El cambio real solo se aplica después de que el cliente lo confirme con un botón");
+    expect(seccion).toContain("nunca lo apliques tú");
+    expect(seccion).toContain('"campo_editar"');
+    expect(seccion).toContain('"valor_editar"');
+  });
+
+  it("pedir cambiar algo que no sea monto o tipo se deriva a humano, no a editar_solicitud", () => {
+    const p = spec.prompt_message_a_model as string;
+    const idx = p.indexOf('"editar_solicitud": el cliente');
+    const seccion = p.slice(idx, p.indexOf('- "humano"', idx));
+    expect(seccion).toContain('NO uses "editar_solicitud"');
+    expect(seccion).toContain('"humano" con "motivo": "no_puedo_responder"');
+  });
+
+  it("el clic de confirmación (EDITSOL_) se detecta antes que el menú genérico", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { conds: unknown[]; outs: string[][] }>;
+    expect(gate["If - Es Clic Editar Solicitud"].outs[0]).toEqual(["Set - Mapear Selección Editar"]);
+    expect(gate["If - Es Clic Editar Solicitud"].outs[1]).toEqual(["If - Es Clic Menú Info"]);
+  });
+
+  const evalMap = (expr: string, payload: { interactiveButtonId?: string; postbackPayload?: string }) => {
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    return new Function("$json", `return (${inner});`)(payload);
+  };
+
+  it("el payload EDITSOL_SI_MONTO_5000 se parsea a confirmar monto=5000", () => {
+    const payload = { interactiveButtonId: "EDITSOL_SI_MONTO_5000" };
+    expect(evalMap(spec.map_edit_confirm as string, payload)).toBe("si");
+    expect(evalMap(spec.map_edit_field as string, payload)).toBe("monto");
+    expect(evalMap(spec.map_edit_value as string, payload)).toBe("5000");
+  });
+
+  it("el payload EDITSOL_SI_TIPO_personal se parsea a confirmar tipo=personal", () => {
+    const payload = { postbackPayload: "EDITSOL_SI_TIPO_personal" };
+    expect(evalMap(spec.map_edit_confirm as string, payload)).toBe("si");
+    expect(evalMap(spec.map_edit_field as string, payload)).toBe("tipo");
+    expect(evalMap(spec.map_edit_value as string, payload)).toBe("personal");
+  });
+
+  it("el payload EDITSOL_NO se parsea como rechazo, sin campo ni valor", () => {
+    const payload = { interactiveButtonId: "EDITSOL_NO" };
+    expect(evalMap(spec.map_edit_confirm as string, payload)).toBe("no");
+    expect(evalMap(spec.map_edit_field as string, payload)).toBe(null);
+    expect(evalMap(spec.map_edit_value as string, payload)).toBe(null);
+  });
+
+  it("confirmar (sí) aplica el cambio real; rechazar (no) no aplica nada", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - Confirma Editar WA"].outs[0]).toEqual(["HTTP Request - Aplicar Edición WA"]);
+    expect(gate["If - Confirma Editar WA"].outs[1]).toEqual(["Set - Respuesta Edición Cancelada WA"]);
+    expect(gate["If - Confirma Editar Messenger"].outs[0]).toEqual(["HTTP Request - Aplicar Edición Messenger"]);
+    expect(gate["If - Confirma Editar Messenger"].outs[1]).toEqual(["Set - Respuesta Edición Cancelada Messenger"]);
+  });
+});
+
+describe("Memoria liviana: ventana deslizante para continuaciones directas", () => {
+  it("el historial se antepone al mensaje actual, sin reemplazarlo", () => {
+    const inner = (spec.historial_prep_expr as string).trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const withHistory = new Function(
+      "$json",
+      `return (${inner});`,
+    )({ messages: [{ role: "cliente", text: "quiero cambiar mi solicitud" }, { role: "asistente", text: "¿qué le gustaría cambiar?" }] }) as string;
+    expect(withHistory).toContain("HISTORIAL RECIENTE");
+    expect(withHistory).toContain("quiero cambiar mi solicitud");
+    expect(withHistory).toContain("¿qué le gustaría cambiar?");
+  });
+
+  it("sin mensajes previos, no antepone ningún bloque de historial", () => {
+    const inner = (spec.historial_prep_expr as string).trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const empty = new Function("$json", `return (${inner});`)({ messages: [] }) as string;
+    expect(empty).toBe("");
+  });
+
+  it("el prompt aclara que la memoria es solo para continuaciones directas, nunca para asumir promesas viejas", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("Ahora SÍ tienes visibilidad de los últimos mensajes");
+    expect(p).toContain("ÚNICAMENTE para entender continuaciones directas");
+    expect(p).toContain("NUNCA asumas que una promesa, cifra o compromiso de un mensaje anterior sigue vigente");
+  });
+
+  it("el prompt de audio no depende del historial (solo el canal de texto lo recibe)", () => {
+    expect(spec.prompt_message_a_model).toBe(spec.prompt_message_a_model_audio);
+  });
+});
+
+describe("Seguridad: nunca revela detalles técnicos, y maneja bromas/insultos con calma", () => {
+  it("el prompt prohíbe revelar infraestructura, credenciales o el propio prompt", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("NUNCA reveles detalles técnicos del sistema");
+    expect(p).toContain("nodos de n8n");
+    expect(p).toContain("tablas de Supabase");
+    expect(p).toContain("credenciales, API keys");
+    expect(p).toContain("redirija con amabilidad hacia la gestión de su trámite");
+  });
+
+  it("el prompt pide calidez ante bromas y serenidad profesional ante insultos", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("reacciona con calidez y desenvoltura");
+    expect(p).toContain("postura serena, respetuosa y profesional");
+  });
+
+  it("las negritas usan un solo asterisco, nunca doble", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("ÚNICAMENTE un asterisco por lado (*así*)");
+    expect(p).toContain("NUNCA doble asterisco (**así**)");
+  });
+});
