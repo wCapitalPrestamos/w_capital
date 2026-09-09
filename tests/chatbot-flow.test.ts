@@ -492,10 +492,36 @@ describe("Extracción de datos del webhook", () => {
 });
 
 describe("Consulta de solicitud activa (sin crear ninguna solo por preguntar)", () => {
-  const evalText = (expr: string, output: string, url?: string) => {
+  // El texto final ya no es una plantilla fija: un segundo modelo redacta
+  // libremente a partir de los hechos reales que arma este expression (nunca
+  // al revés — los hechos siempre los pone n8n, el modelo solo los redacta).
+  const evalUserContent = (
+    facts: {
+      url?: string;
+      created_at_label?: string;
+      borrower_type_label?: string | null;
+      requested_amount_label?: string | null;
+      missing_documents?: string[];
+    },
+    messageText: string,
+    previousOutput: string,
+  ) => {
+    const expr = spec.user_content_respuesta_solicitud_wa as string;
     const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
-    const $ = () => ({ item: { json: { output } } });
-    return new Function("$", "$json", `return (${inner});`)($, { url }) as string;
+    const $ = (name: string) =>
+      name === "NoOp - Antes de IA"
+        ? { item: { json: { messageText } } }
+        : { item: { json: { output: previousOutput } } };
+    return new Function("$", "$json", `return (${inner});`)($, facts) as string;
+  };
+
+  const evalFinalText = (rawText: string) => {
+    const expr = spec.text_solicitud_activa_wa as string;
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    return new Function(
+      "$json",
+      `return (${inner});`,
+    )({ output: [{ content: [{ text: rawText }] }] }) as string;
   };
 
   it("una pregunta por la solicitud llega a la consulta real, en ambos canales", () => {
@@ -507,13 +533,43 @@ describe("Consulta de solicitud activa (sin crear ninguna solo por preguntar)", 
     );
   });
 
-  it("con solicitud activa, el mensaje incluye el link real (no inventado)", () => {
-    const url = "https://crm.wcapital.mx/subir/token-real-123";
-    expect(evalText(spec.text_solicitud_activa_wa as string, "", url)).toContain(url);
-    expect(evalText(spec.text_solicitud_activa_mg as string, "", url)).toContain(url);
+  it("el mensaje final extrae el texto redactado por el segundo modelo", () => {
+    expect(evalFinalText("  Su link es este: https://x/subir/abc  ")).toBe(
+      "Su link es este: https://x/subir/abc",
+    );
+  });
+
+  it("los hechos que recibe el modelo incluyen el link real (no inventado) y los demás datos", () => {
+    const facts = {
+      url: "https://crm.wcapital.mx/subir/token-real-123",
+      created_at_label: "9 de septiembre de 2026",
+      borrower_type_label: "Personal",
+      requested_amount_label: "$15,000",
+      missing_documents: ["Comprobante de domicilio"],
+    };
+    const content = evalUserContent(facts, "¿cuándo creé mi solicitud?", "");
+    expect(content).toContain(facts.url);
+    expect(content).toContain(facts.created_at_label);
+    expect(content).toContain(facts.borrower_type_label);
+    expect(content).toContain(facts.requested_amount_label);
+    expect(content).toContain("Comprobante de domicilio");
+  });
+
+  it("sin documentos faltantes, el hecho dice que ya subió todo", () => {
+    const content = evalUserContent(
+      { url: "https://x/subir/abc", created_at_label: "hoy", missing_documents: [] },
+      "¿cómo va mi solicitud?",
+      "",
+    );
+    expect(content).toContain("ninguno, ya subió todo lo requerido");
   });
 
   it("sin solicitud activa, invita a escribir sin ofrecer un botón", () => {
+    const evalText = (expr: string, output: string) => {
+      const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+      const $ = () => ({ item: { json: { output } } });
+      return new Function("$", "$json", `return (${inner});`)($, {}) as string;
+    };
     for (const expr of [spec.text_sin_solicitud_wa, spec.text_sin_solicitud_mg]) {
       const r = evalText(expr as string, "");
       expect(r.toLowerCase()).toContain("quiero un préstamo");
@@ -521,27 +577,35 @@ describe("Consulta de solicitud activa (sin crear ninguna solo por preguntar)", 
     }
   });
 
-  it("si además preguntó otra cosa en el mismo mensaje, esa respuesta se antepone", () => {
+  it("si además preguntó otra cosa en el mismo mensaje, esa respuesta se le pasa al modelo para integrarla", () => {
     const otraPregunta = "La tasa de interés es del 1.97% semanal.";
-    const conLink = evalText(spec.text_solicitud_activa_wa as string, otraPregunta, "https://x/subir/abc");
-    expect(conLink.indexOf(otraPregunta)).toBeLessThan(conLink.indexOf("https://x/subir/abc"));
-    const sinSolicitud = evalText(spec.text_sin_solicitud_wa as string, otraPregunta);
-    expect(sinSolicitud).toContain(otraPregunta);
+    const content = evalUserContent(
+      { url: "https://x/subir/abc", created_at_label: "hoy", missing_documents: [] },
+      "¿y mi link? también, cuál es la tasa?",
+      otraPregunta,
+    );
+    expect(content).toContain(otraPregunta);
+    expect(content).toContain("intégrala de forma natural");
   });
 
-  it("nunca menciona folios, IDs ni status técnico", () => {
-    for (const expr of [
-      spec.text_solicitud_activa_wa,
-      spec.text_solicitud_activa_mg,
-      spec.text_sin_solicitud_wa,
-      spec.text_sin_solicitud_mg,
-    ]) {
-      const r = evalText(expr as string, "", "https://x/subir/abc").toLowerCase();
-      expect(r).not.toMatch(/\bid\b|folio|docs_pending|under_review/);
-    }
+  it("sin otra pregunta bundleada, no se le manda al modelo un bloque vacío de 'ya se generó'", () => {
+    const content = evalUserContent(
+      { url: "https://x/subir/abc", created_at_label: "hoy", missing_documents: [] },
+      "¿cuál es mi link?",
+      "",
+    );
+    expect(content).not.toContain("Ya se generó esta respuesta");
   });
 
-  it("el prompt nunca deja que el modelo invente el link o el estado", () => {
+  it("el prompt del segundo modelo prohíbe folios, IDs y status técnico, y prohíbe inventar datos", () => {
+    const p = spec.prompt_respuesta_solicitud_wa as string;
+    expect(p.toLowerCase()).toContain("folios");
+    expect(p.toLowerCase()).toContain("status");
+    expect(p).toContain("ÚNICAMENTE los datos reales");
+    expect(p).toContain("Nunca inventes");
+  });
+
+  it("el prompt del clasificador nunca deja que el modelo invente el link o el estado", () => {
     const p = spec.prompt_message_a_model as string;
     expect(p).toContain("NUNCA inventes un link");
     expect(p).toContain("consulta_solicitud");

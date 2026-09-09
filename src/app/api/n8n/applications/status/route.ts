@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { findContact } from "@/lib/conversations";
+import { borrowerTypeLabels, docTypeLabels } from "@/lib/labels";
 import { isValidN8nRequest, unauthorized } from "@/lib/n8n-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUploadToken } from "@/lib/upload-tokens";
+import type { BorrowerType, DocType } from "@/lib/types";
+
+// Mismos documentos requeridos que src/app/subir/[token]/page.tsx — el aval
+// solo aplica si la solicitud lo tiene marcado.
+const BASE_REQUIRED: DocType[] = ["ine", "proof_of_address", "proof_of_income", "collateral"];
 
 // n8n → CRM: el cliente pregunta por SU solicitud (si tiene una abierta, o
 // pide su link para subir documentos) sin haber expresado una intención
@@ -23,6 +29,19 @@ const STALE_AFTER_MS = 30 * 24 * 3600_000;
 const bodySchema = z.object({
   channel: z.enum(["whatsapp", "messenger"]),
   external_thread_id: z.string().min(1),
+});
+
+const dateFormatter = new Intl.DateTimeFormat("es-MX", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "America/Hermosillo",
+});
+
+const amountFormatter = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  maximumFractionDigits: 0,
 });
 
 export async function POST(request: Request) {
@@ -48,7 +67,7 @@ export async function POST(request: Request) {
 
   const { data: application } = await db
     .from("loan_applications")
-    .select("id, updated_at")
+    .select("id, created_at, updated_at, borrower_type, requested_amount, has_aval")
     .eq("contact_id", contact.id)
     .in("status", ["draft", "docs_pending", "under_review"])
     .order("created_at", { ascending: false })
@@ -74,10 +93,29 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: tokenError.message }, { status: 500 });
   }
 
+  const { data: uploaded } = await db
+    .from("documents")
+    .select("doc_type")
+    .eq("application_id", application.id);
+
+  const requiredDocs = application.has_aval ? [...BASE_REQUIRED, "aval_ine" as DocType] : BASE_REQUIRED;
+  const uploadedTypes = new Set((uploaded ?? []).map((d) => d.doc_type));
+  const missingDocuments = requiredDocs
+    .filter((docType) => !uploadedTypes.has(docType))
+    .map((docType) => docTypeLabels[docType]);
+
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return Response.json({
     ok: true,
     has_active: true,
     url: `${base}/subir/${rawToken}`,
+    created_at_label: dateFormatter.format(new Date(application.created_at)),
+    borrower_type_label: application.borrower_type
+      ? borrowerTypeLabels[application.borrower_type as BorrowerType]
+      : null,
+    requested_amount_label: application.requested_amount
+      ? amountFormatter.format(application.requested_amount)
+      : null,
+    missing_documents: missingDocuments,
   });
 }
