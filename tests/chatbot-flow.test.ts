@@ -490,3 +490,113 @@ describe("Extracción de datos del webhook", () => {
     expect(img.messageType).toBe("image");
   });
 });
+
+describe("Consulta de solicitud activa (sin crear ninguna solo por preguntar)", () => {
+  const evalText = (expr: string, output: string, url?: string) => {
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const $ = () => ({ item: { json: { output } } });
+    return new Function("$", "$json", `return (${inner});`)($, { url }) as string;
+  };
+
+  it("una pregunta por la solicitud llega a la consulta real, en ambos canales", () => {
+    expect(accionDestination({ accion: "consulta_solicitud", output: "" }, "wa")).toBe(
+      "HTTP Request - Consultar Solicitud WA",
+    );
+    expect(accionDestination({ accion: "consulta_solicitud", output: "" }, "mg")).toBe(
+      "HTTP Request - Consultar Solicitud Messenger",
+    );
+  });
+
+  it("con solicitud activa, el mensaje incluye el link real (no inventado)", () => {
+    const url = "https://crm.wcapital.mx/subir/token-real-123";
+    expect(evalText(spec.text_solicitud_activa_wa as string, "", url)).toContain(url);
+    expect(evalText(spec.text_solicitud_activa_mg as string, "", url)).toContain(url);
+  });
+
+  it("sin solicitud activa, invita a escribir sin ofrecer un botón", () => {
+    for (const expr of [spec.text_sin_solicitud_wa, spec.text_sin_solicitud_mg]) {
+      const r = evalText(expr as string, "");
+      expect(r.toLowerCase()).toContain("quiero un préstamo");
+      expect(r.toLowerCase()).not.toContain("botón");
+    }
+  });
+
+  it("si además preguntó otra cosa en el mismo mensaje, esa respuesta se antepone", () => {
+    const otraPregunta = "La tasa de interés es del 1.97% semanal.";
+    const conLink = evalText(spec.text_solicitud_activa_wa as string, otraPregunta, "https://x/subir/abc");
+    expect(conLink.indexOf(otraPregunta)).toBeLessThan(conLink.indexOf("https://x/subir/abc"));
+    const sinSolicitud = evalText(spec.text_sin_solicitud_wa as string, otraPregunta);
+    expect(sinSolicitud).toContain(otraPregunta);
+  });
+
+  it("nunca menciona folios, IDs ni status técnico", () => {
+    for (const expr of [
+      spec.text_solicitud_activa_wa,
+      spec.text_solicitud_activa_mg,
+      spec.text_sin_solicitud_wa,
+      spec.text_sin_solicitud_mg,
+    ]) {
+      const r = evalText(expr as string, "", "https://x/subir/abc").toLowerCase();
+      expect(r).not.toMatch(/\bid\b|folio|docs_pending|under_review/);
+    }
+  });
+
+  it("el prompt nunca deja que el modelo invente el link o el estado", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("NUNCA inventes un link");
+    expect(p).toContain("consulta_solicitud");
+  });
+});
+
+describe("Ubicación combinada con otra pregunta (pide_ubicacion)", () => {
+  const evalAppend = (expr: string, base: string) => {
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    return new Function("$json", `return (${inner});`)({ respuestaFinal: base }) as string;
+  };
+
+  it("If - ¿Pide Ubicación? solo se activa cuando el modelo lo marca true", () => {
+    const gateWA = spec.if_nodes as unknown as Record<
+      string,
+      { conds: { left: string }[]; outs: string[][] }
+    >;
+    expect(gateWA["If - ¿Pide Ubicación? (WA)"].conds[0].left).toContain("pideUbicacion");
+    expect(gateWA["If - ¿Pide Ubicación? (Messenger)"].conds[0].left).toContain("pideUbicacion");
+  });
+
+  it("WhatsApp agrega la dirección y dispara el pin real, sin el link de Google", () => {
+    const texto = evalAppend(spec.text_agregar_ubicacion_wa as string, "La tasa es 1.97%.");
+    expect(texto).toContain("La tasa es 1.97%.");
+    expect(texto).toContain("Av. Luis Donaldo Colosio 158");
+    expect(texto).not.toContain("maps.app.goo.gl");
+
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    // La rama TRUE dispara el pin real de WhatsApp, además del texto
+    expect(gate["If - ¿Pide Ubicación? (WA)"].outs[0]).toEqual(["Set - Agregar Ubicación WA"]);
+  });
+
+  it("Messenger agrega la dirección y el link de Google (no soporta el pin nativo)", () => {
+    const texto = evalAppend(spec.text_agregar_ubicacion_mg as string, "La tasa es 1.97%.");
+    expect(texto).toContain("La tasa es 1.97%.");
+    expect(texto).toContain("Av. Luis Donaldo Colosio 158");
+    expect(texto).toContain("maps.app.goo.gl");
+  });
+
+  it("una pregunta de FAQ sin ubicación no dispara el pin de WhatsApp", () => {
+    // La rama FALSE del gate va directo a enviar, sin pasar por el pin
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - ¿Pide Ubicación? (WA)"].outs[1]).not.toContain("WhatsApp - Compartir Ubicación");
+  });
+
+  it("la ubicación sola (accion: ubicacion) sigue con su flujo dedicado, sin cambios", () => {
+    expect(accionDestination({ accion: "ubicacion" }, "wa")).toBe(
+      "Set - Respuesta Ubicación Whatsapp",
+    );
+    expect(accionDestination({ accion: "ubicacion" }, "mg")).toBe("Set - Ubicación");
+  });
+
+  it("el prompt le pide al modelo responder preguntas múltiples en un solo output", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).toContain("responde TODAS las partes");
+    expect(p).toContain("pide_ubicacion");
+  });
+});
