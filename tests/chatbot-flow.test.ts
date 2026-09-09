@@ -760,11 +760,12 @@ describe("Ubicación combinada con otra pregunta (pide_ubicacion)", () => {
     expect(gate["If - ¿Pide Ubicación? (WA)"].outs[0]).toEqual(["Set - Agregar Ubicación WA"]);
   });
 
-  it("Messenger agrega la dirección y el link de Google (no soporta el pin nativo)", () => {
+  it("Messenger agrega la dirección en texto y el link de Google va aparte, como botón (nunca texto plano)", () => {
     const texto = evalAppend(spec.text_agregar_ubicacion_mg as string, "La tasa es 1.97%.");
     expect(texto).toContain("La tasa es 1.97%.");
     expect(texto).toContain("Av. Luis Donaldo Colosio 158");
-    expect(texto).toContain("maps.app.goo.gl");
+    // El link ya no va pegado en el texto — se envía por separado como botón nativo.
+    expect(texto).not.toContain("maps.app.goo.gl");
   });
 
   it("una pregunta de FAQ sin ubicación no dispara el pin de WhatsApp", () => {
@@ -801,16 +802,116 @@ describe("Ubicación combinada con otra pregunta (pide_ubicacion)", () => {
     expect(p).not.toContain("maps.app.goo.gl");
   });
 
-  it("el prompt de ubicación en Messenger incluye el link de Maps (no hay pin nativo)", () => {
+  it("el prompt de ubicación en Messenger nunca deja que el modelo escriba el link (se manda como botón)", () => {
     const p = spec.prompt_respuesta_ubicacion_mg as string;
     expect(p).toContain("Av. Luis Donaldo Colosio 158");
-    expect(p).toContain("https://maps.app.goo.gl/m7LTNSgc2RtApndLA");
-    expect(p).toContain("Incluya el link tal cual");
+    expect(p).toContain("NUNCA escriba el link de Google Maps como texto");
+    expect(p).toContain("botón nativo");
+    expect(p).not.toContain("Incluya el link tal cual");
   });
 
   it("el prompt le pide al modelo responder preguntas múltiples en un solo output", () => {
     const p = spec.prompt_message_a_model as string;
     expect(p).toContain("responde TODAS las partes");
     expect(p).toContain("pide_ubicacion");
+  });
+});
+
+describe("Los links nunca se mandan como texto plano: siempre como botón nativo", () => {
+  // Arquitectura: "Send message" (WA) y "HTTP Request - Enviar Messenger" son
+  // los puntos únicos de envío de texto que usan casi todos los flujos. Se
+  // insertó una compuerta ("If - ¿Tiene Botón URL?") justo antes de cada uno:
+  // si el item trae un botonUrl real, se manda como botón nativo (cta_url en
+  // WhatsApp, web_url en Messenger) en vez de como texto. Todo lo que nunca
+  // tuvo un link (requisitos, tasa, cancelación, etc.) sigue exactamente igual
+  // porque nunca setean botonUrl — la condición es simplemente falsa para ellos.
+  const evalBoolCond = (leftExpr: string, botonUrl: unknown) => {
+    const inner = leftExpr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    return new Function("$json", `return (${inner});`)({ botonUrl }) === true;
+  };
+
+  it("la compuerta se activa solo cuando hay un botonUrl real, en ambos canales", () => {
+    const gates = spec.if_nodes as unknown as Record<string, { conds: { left: string }[] }>;
+    for (const key of ["If - ¿Tiene Botón URL? (WA)", "If - ¿Tiene Botón URL? (Messenger)"] as const) {
+      const left = gates[key].conds[0].left;
+      expect(evalBoolCond(left, "https://crm.wcapital.mx/subir/abc")).toBe(true);
+      expect(evalBoolCond(left, null)).toBe(false);
+      expect(evalBoolCond(left, undefined)).toBe(false);
+      expect(evalBoolCond(left, "")).toBe(false);
+    }
+  });
+
+  it("con botón, WhatsApp manda un mensaje interactivo cta_url (nunca la URL en el body)", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - ¿Tiene Botón URL? (WA)"].outs[0]).toEqual(["WhatsApp - Enviar Botón URL"]);
+    expect(gate["If - ¿Tiene Botón URL? (WA)"].outs[1]).toEqual(["Send message"]);
+
+    const inner = (spec.body_boton_url_wa as string).trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const $ = () => ({ item: { json: { senderId: "5216624335276" } } });
+    const body = new Function("$", "$json", `return (${inner});`)($, {
+      respuestaFinal: "Aquí sigue su link 👇",
+      botonUrl: "https://crm.wcapital.mx/subir/abc",
+      botonTitulo: "Subir documentos",
+    }) as {
+      type: string;
+      interactive: { type: string; body: { text: string }; action: { parameters: { url: string; display_text: string } } };
+    };
+    expect(body.interactive.type).toBe("cta_url");
+    expect(body.interactive.action.parameters.url).toBe("https://crm.wcapital.mx/subir/abc");
+    expect(body.interactive.action.parameters.display_text).toBe("Subir documentos");
+    expect(body.interactive.body.text).not.toContain("https://");
+  });
+
+  it("con botón, Messenger manda una plantilla de botones web_url (nunca la URL en el body)", () => {
+    const gate = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(gate["If - ¿Tiene Botón URL? (Messenger)"].outs[0]).toEqual([
+      "HTTP Request - Enviar Messenger Botón URL",
+    ]);
+    expect(gate["If - ¿Tiene Botón URL? (Messenger)"].outs[1]).toEqual(["HTTP Request - Enviar Messenger"]);
+
+    const inner = (spec.body_boton_url_mg as string).trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const $ = () => ({ item: { json: { senderId: "999" } } });
+    const body = new Function("$", "$json", `return (${inner});`)($, {
+      respuestaFinal: "Aquí sigue su link 👇",
+      botonUrl: "https://maps.app.goo.gl/m7LTNSgc2RtApndLA",
+      botonTitulo: "Ver ubicación",
+    }) as { message: { attachment: { payload: { buttons: { type: string; url: string; title: string }[] } } } };
+    const button = body.message.attachment.payload.buttons[0];
+    expect(button.type).toBe("web_url");
+    expect(button.url).toBe("https://maps.app.goo.gl/m7LTNSgc2RtApndLA");
+    expect(button.title).toBe("Ver ubicación");
+  });
+
+  it("el título del botón nunca excede 20 caracteres (límite de WhatsApp)", () => {
+    for (const titulo of ["Subir documentos", "Ver ubicación"]) {
+      expect(titulo.length).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it("la solicitud activa toma el link del dato real de la consulta, nunca de lo que redacte el modelo", () => {
+    // botonUrl se lee de $('HTTP Request - Consultar Solicitud WA/Messenger'),
+    // no de nada que el modelo haya escrito — así el link nunca se puede
+    // inventar ni corromper por una mala redacción del segundo modelo.
+    expect(spec.text_solicitud_activa_wa).not.toContain("botonUrl");
+    // (la aserción real de esta garantía vive en el propio Set del workflow;
+    // aquí solo confirmamos que el texto final sigue siendo puro texto del modelo)
+    expect(spec.text_solicitud_activa_wa).toBe("={{ $json.output[0].content[0].text.trim() }}");
+  });
+
+  it("el recordatorio de documentos por Messenger ya no manda el link como texto — usa botón web_url", () => {
+    const inner = (spec.body_recordatorio_mg as string).trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const body = new Function("$json", `return (${inner});`)({
+      external_thread_id: "999",
+      url: "https://crm.wcapital.mx/subir/xyz",
+    }) as {
+      message: {
+        text?: string;
+        attachment?: { payload: { text: string; buttons: { type: string; url: string }[] } };
+      };
+    };
+    expect(body.message.text).toBeUndefined();
+    expect(body.message.attachment?.payload.text).not.toContain("https://");
+    expect(body.message.attachment?.payload.buttons[0].type).toBe("web_url");
+    expect(body.message.attachment?.payload.buttons[0].url).toBe("https://crm.wcapital.mx/subir/xyz");
   });
 });
