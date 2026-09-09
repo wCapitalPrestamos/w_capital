@@ -195,15 +195,15 @@ describe("Ruteo de clics de botones/listas", () => {
 
 describe("Destino de cada opción del menú", () => {
   const esperadoWA: Record<string, string> = {
-    INFO_REQUISITOS: "Set - Respuesta Requisitos Whatsapp",
-    INFO_TASA: "Set - Respuesta Tasa (Menú WA)",
+    INFO_REQUISITOS: "Message a model - Respuesta Requisitos WA",
+    INFO_TASA: "Message a model - Respuesta Tasa WA",
     INFO_SOLICITAR: "HTTP Request - Enviar Cómo Solicitar WA",
     INFO_UBICACION: "Set - Respuesta Ubicación Whatsapp",
     INFO_TABLA: "WhatsApp - Enviar Tabla Micronegocio",
   };
   const esperadoMG: Record<string, string> = {
-    INFO_REQUISITOS: "Set - Respuesta Requisitos Messenger",
-    INFO_TASA: "Set - Respuesta Tasa (Menú Messenger)",
+    INFO_REQUISITOS: "Message a model - Respuesta Requisitos Messenger",
+    INFO_TASA: "Message a model - Respuesta Tasa Messenger",
     INFO_SOLICITAR: "HTTP Request - Enviar Cómo Solicitar Messenger",
     INFO_UBICACION: "Set - Ubicación",
     INFO_TABLA: "HTTP Request - Enviar Texto Tabla Micronegocio Messenger",
@@ -299,7 +299,9 @@ describe("Destino según la clasificación de la IA", () => {
   it("cada topic del FAQ llega a su rama, en ambos canales", () => {
     const casos: [string, string, string][] = [
       // topic          WhatsApp                                   Messenger
-      ["requisitos", "Set - Respuesta Requisitos Whatsapp", "Set - Respuesta Requisitos Messenger"],
+      // "requisitos" ya no tiene rama propia: cae en la respuesta libre del FAQ,
+      // igual que cualquier otro topic sin plantilla fija (ver describe de abajo).
+      ["requisitos", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
       ["tasa_negocio", "WhatsApp - Enviar Tabla Micronegocio", "HTTP Request - Enviar Texto Tabla Micronegocio Messenger"],
       ["servicios", "HTTP Request - Enviar Servicios WA", "HTTP Request - Enviar Servicios Messenger"],
       ["otro", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
@@ -406,15 +408,59 @@ describe("Respuestas del FAQ: redacción libre del modelo (decisión explícita 
     expect(evalMapa(spec.faq_map_wa, texto)).toBe(texto);
   });
 
-  it("requisitos sigue con su plantilla fija de siempre (fuera del revert)", () => {
-    // Nunca ha fallado y tiene un formato con lista numerada que se perdería
-    // si pasara a redacción libre — se deja explícitamente fuera del cambio.
+  it("requisitos ya no tiene plantilla fija: cae en la respuesta libre del FAQ", () => {
+    // Único mensaje/flujo fijo que debe quedar es menú principal, cancelación
+    // y "Cómo solicitar" + personal/negocio + link — requisitos y tasa dejaron
+    // de ser excepciones y ahora usan el mismo mecanismo de redacción libre.
     expect(accionDestination({ accion: "faq", topic: "requisitos" }, "wa")).toBe(
-      "Set - Respuesta Requisitos Whatsapp",
+      "Set - Respuesta FAQ Whatsapp",
     );
     expect(accionDestination({ accion: "faq", topic: "requisitos" }, "mg")).toBe(
-      "Set - Respuesta Requisitos Messenger",
+      "Set - Respuesta FAQ Messenger",
     );
+  });
+});
+
+describe("Menú principal: Requisitos y Tasa ya no son plantilla fija", () => {
+  const evalFinal = (rawText: string) =>
+    new Function(
+      "$json",
+      "return ($json.output[0].content[0].text.trim());",
+    )({ output: [{ content: [{ text: rawText }] }] }) as string;
+
+  it("el botón Requisitos del menú pasa por un modelo que redacta con los datos reales, no un texto fijo", () => {
+    expect(menuDestination(extract("wa", waList("INFO_REQUISITOS")), "wa")).toBe(
+      "Message a model - Respuesta Requisitos WA",
+    );
+    expect(menuDestination(extract("mg", mgQuick("INFO_REQUISITOS")), "mg")).toBe(
+      "Message a model - Respuesta Requisitos Messenger",
+    );
+  });
+
+  it("el botón Tasa del menú pasa por un modelo que redacta con el dato real, no un texto fijo", () => {
+    expect(menuDestination(extract("wa", waList("INFO_TASA")), "wa")).toBe(
+      "Message a model - Respuesta Tasa WA",
+    );
+    expect(menuDestination(extract("mg", mgQuick("INFO_TASA")), "mg")).toBe(
+      "Message a model - Respuesta Tasa Messenger",
+    );
+  });
+
+  it("el Set final de cada botón solo extrae el texto que redactó el modelo", () => {
+    expect(evalFinal("  Estos son los requisitos...  ")).toBe("Estos son los requisitos...");
+  });
+
+  it("el prompt de Requisitos no inventa ni quita puntos de la lista real", () => {
+    const p = spec.prompt_respuesta_requisitos_menu as string;
+    expect(p).toContain("ÚNICAMENTE en esta información real");
+    expect(p).toContain("Comprobante de domicilio");
+    expect(p).toContain("Garantía");
+  });
+
+  it("el prompt de Tasa nunca deja que el modelo cambie el número real", () => {
+    const p = spec.prompt_respuesta_tasa_menu as string;
+    expect(p).toContain("1.97% semanal");
+    expect(p).toContain("sin inventar ni cambiar el número");
   });
 });
 
