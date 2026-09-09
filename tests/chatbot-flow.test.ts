@@ -531,6 +531,53 @@ describe("Guardarraíles del prompt para la redacción libre del FAQ", () => {
   });
 });
 
+describe("El campo topic ya no clasifica temas que no enrutan a nada (solo tasa_negocio)", () => {
+  // requisitos/tasa/anticipo/sin_comprobante/empeno/cobertura/garantia/cita/aval/
+  // servicios/proceso ya caían todos en la misma respuesta libre del FAQ — pedirle
+  // a la IA que además los etiquetara con un "topic" específico era clasificar por
+  // clasificar, sin que nada leyera ese valor. El único topic que sí importa es
+  // "tasa_negocio", porque dispara el envío de la tabla de pagos (una imagen real,
+  // no se puede redactar libremente).
+  const promptWA = spec.prompt_message_a_model as string;
+
+  it("ya no le pide a la IA distinguir requisitos/tasa/anticipo/etc. como topics separados", () => {
+    for (const stale of [
+      '"requisitos" si la pregunta es específicamente',
+      '"anticipo" (pregunta 3',
+      '"sin_comprobante" (pregunta 4',
+      '"empeno" (pregunta 5',
+      '"cobertura" (pregunta 6',
+      '"garantia" (pregunta 7',
+      '"cita" (pregunta 8',
+      '"aval" (pregunta 10',
+      '"servicios" si la pregunta es sobre qué hace WCapital',
+    ]) {
+      expect(promptWA).not.toContain(stale);
+    }
+  });
+
+  it("solo pide distinguir tasa_negocio, porque es el único que dispara algo distinto de texto", () => {
+    expect(promptWA).toContain('"topic" ÚNICAMENTE para distinguir el único caso que dispara un envío especial');
+    expect(promptWA).toContain('use "tasa_negocio"');
+    expect(promptWA).toContain('use "topic": "otro" (o simplemente omita el campo)');
+  });
+
+  it("tasa_negocio sigue enrutando a la tabla de pagos real, sin cambios", () => {
+    expect(accionDestination({ accion: "faq", topic: "tasa_negocio" }, "wa")).toBe(
+      "WhatsApp - Enviar Tabla Micronegocio",
+    );
+    expect(accionDestination({ accion: "faq", topic: "tasa_negocio" }, "mg")).toBe(
+      "HTTP Request - Enviar Texto Tabla Micronegocio Messenger",
+    );
+  });
+
+  it("cualquier otro topic (o ninguno) sigue cayendo en la respuesta libre del FAQ", () => {
+    for (const topic of ["requisitos", "tasa", "anticipo", "otro", null, undefined]) {
+      expect(accionDestination({ accion: "faq", topic }, "wa")).toBe("Set - Respuesta FAQ Whatsapp");
+    }
+  });
+});
+
 describe("Una pregunta fuera del FAQ deriva a humano, nunca inventa (sin auto-pausar el bot)", () => {
   it("no_puedo_responder sigue llegando al handoff que ya no pausa el bot solo", () => {
     expect(accionDestination({ accion: "humano", motivoHumano: "no_puedo_responder" }, "wa")).toBe(
