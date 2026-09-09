@@ -6,6 +6,23 @@ import type { Channel, Contact, Conversation } from "@/lib/types";
 // Upserts de contacto y conversación por identidad externa (wa_id / PSID).
 // Se usa desde las rutas /api/n8n/* con el cliente service-role.
 
+// Solo lectura — a diferencia de findOrCreateContact, nunca crea nada. Para
+// consultas donde el cliente solo pregunta por algo suyo (ej. su solicitud);
+// no tiene sentido darlo de alta apenas por preguntar.
+export async function findContact(
+  db: SupabaseClient,
+  channel: Channel,
+  externalThreadId: string,
+): Promise<Contact | null> {
+  const idColumn = channel === "whatsapp" ? "wa_id" : "messenger_psid";
+  const { data } = await db
+    .from("contacts")
+    .select("*")
+    .eq(idColumn, externalThreadId)
+    .maybeSingle();
+  return data as Contact | null;
+}
+
 export async function findOrCreateContact(
   db: SupabaseClient,
   channel: Channel,
