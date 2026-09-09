@@ -198,14 +198,14 @@ describe("Destino de cada opción del menú", () => {
     INFO_REQUISITOS: "Message a model - Respuesta Requisitos WA",
     INFO_TASA: "Message a model - Respuesta Tasa WA",
     INFO_SOLICITAR: "HTTP Request - Enviar Cómo Solicitar WA",
-    INFO_UBICACION: "Set - Respuesta Ubicación Whatsapp",
+    INFO_UBICACION: "Message a model - Respuesta Ubicación WA",
     INFO_TABLA: "WhatsApp - Enviar Tabla Micronegocio",
   };
   const esperadoMG: Record<string, string> = {
     INFO_REQUISITOS: "Message a model - Respuesta Requisitos Messenger",
     INFO_TASA: "Message a model - Respuesta Tasa Messenger",
     INFO_SOLICITAR: "HTTP Request - Enviar Cómo Solicitar Messenger",
-    INFO_UBICACION: "Set - Ubicación",
+    INFO_UBICACION: "Message a model - Respuesta Ubicación Messenger",
     INFO_TABLA: "HTTP Request - Enviar Texto Tabla Micronegocio Messenger",
   };
 
@@ -277,7 +277,7 @@ describe("Destino según la clasificación de la IA", () => {
   });
 
   it("cada acción llega hasta su nodo final", () => {
-    expect(accionDestination({ accion: "ubicacion" })).toBe("Set - Respuesta Ubicación Whatsapp");
+    expect(accionDestination({ accion: "ubicacion" })).toBe("Message a model - Respuesta Ubicación WA");
     expect(accionDestination({ accion: "formulario" })).toBe("HTTP Request - Upload Link WA");
     expect(accionDestination({ accion: "fuera_tema" })).toBe("Set - Respuesta Fuera de tema Whatsapp");
     expect(accionDestination({ accion: "fuera_tema", fuera_tema_tipo: "personal" })).toBe(
@@ -697,11 +697,39 @@ describe("Ubicación combinada con otra pregunta (pide_ubicacion)", () => {
     expect(gate["If - ¿Pide Ubicación? (WA)"].outs[1]).not.toContain("WhatsApp - Compartir Ubicación");
   });
 
-  it("la ubicación sola (accion: ubicacion) sigue con su flujo dedicado, sin cambios", () => {
+  it("la ubicación sola (accion: ubicacion) sigue con su flujo dedicado, pero ya no es texto fijo", () => {
+    // El destino inmediato ahora es el modelo que redacta con los datos reales;
+    // el Set de siempre solo extrae ese texto (mismo patrón que solicitud/requisitos/tasa).
     expect(accionDestination({ accion: "ubicacion" }, "wa")).toBe(
-      "Set - Respuesta Ubicación Whatsapp",
+      "Message a model - Respuesta Ubicación WA",
     );
-    expect(accionDestination({ accion: "ubicacion" }, "mg")).toBe("Set - Ubicación");
+    expect(accionDestination({ accion: "ubicacion" }, "mg")).toBe(
+      "Message a model - Respuesta Ubicación Messenger",
+    );
+  });
+
+  it("el botón Ubicación del menú también pasa por el modelo, no por texto fijo", () => {
+    expect(menuDestination(extract("wa", waList("INFO_UBICACION")), "wa")).toBe(
+      "Message a model - Respuesta Ubicación WA",
+    );
+    expect(menuDestination(extract("mg", mgQuick("INFO_UBICACION")), "mg")).toBe(
+      "Message a model - Respuesta Ubicación Messenger",
+    );
+  });
+
+  it("el prompt de ubicación en WhatsApp da la dirección y el horario reales, y avisa del pin", () => {
+    const p = spec.prompt_respuesta_ubicacion_wa as string;
+    expect(p).toContain("Av. Luis Donaldo Colosio 158");
+    expect(p).toContain("9:00 AM - 5:30 PM");
+    expect(p).toContain("pin de WhatsApp");
+    expect(p).not.toContain("maps.app.goo.gl");
+  });
+
+  it("el prompt de ubicación en Messenger incluye el link de Maps (no hay pin nativo)", () => {
+    const p = spec.prompt_respuesta_ubicacion_mg as string;
+    expect(p).toContain("Av. Luis Donaldo Colosio 158");
+    expect(p).toContain("https://maps.app.goo.gl/m7LTNSgc2RtApndLA");
+    expect(p).toContain("Incluya el link tal cual");
   });
 
   it("el prompt le pide al modelo responder preguntas múltiples en un solo output", () => {
