@@ -10,6 +10,15 @@ import type { BorrowerType, DocType } from "@/lib/types";
 // solo aplica si la solicitud lo tiene marcado.
 const BASE_REQUIRED: DocType[] = ["ine", "proof_of_address", "proof_of_income", "collateral"];
 
+// Frase amigable para el cliente — nunca el status técnico interno (nunca
+// "docs_pending" tal cual). Solo cubre los 3 valores que cuentan como
+// "activa"; los demás (aprobada, rechazada, etc.) nunca llegan aquí.
+const FRIENDLY_STATUS: Record<"draft" | "docs_pending" | "under_review", string> = {
+  draft: "apenas la está completando, aún faltan datos por terminar",
+  docs_pending: "le faltan documentos por subir",
+  under_review: "ya está en revisión por nuestro equipo",
+};
+
 // n8n → CRM: el cliente pregunta por SU solicitud (si tiene una abierta, o
 // pide su link para subir documentos) sin haber expresado una intención
 // nueva de solicitar — a diferencia de /api/n8n/upload-link, este endpoint
@@ -67,7 +76,7 @@ export async function POST(request: Request) {
 
   const { data: application } = await db
     .from("loan_applications")
-    .select("id, created_at, updated_at, borrower_type, requested_amount, has_aval")
+    .select("id, status, created_at, updated_at, borrower_type, requested_amount, has_aval")
     .eq("contact_id", contact.id)
     .in("status", ["draft", "docs_pending", "under_review"])
     .order("created_at", { ascending: false })
@@ -110,6 +119,7 @@ export async function POST(request: Request) {
     has_active: true,
     url: `${base}/subir/${rawToken}`,
     created_at_label: dateFormatter.format(new Date(application.created_at)),
+    status_label: FRIENDLY_STATUS[application.status as "draft" | "docs_pending" | "under_review"],
     borrower_type_label: application.borrower_type
       ? borrowerTypeLabels[application.borrower_type as BorrowerType]
       : null,
