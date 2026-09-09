@@ -233,7 +233,7 @@ describe("Destino de cada opción del menú", () => {
 
 describe("Filtro de mensajes de relleno (antes del clasificador)", () => {
   it("no se contesta emoji suelto, ánimo ni risas", () => {
-    for (const texto of ["👍", "🫶🏻", "Animo", "Animoooo", "jajaja", "jsjs", "Éxito"]) {
+    for (const texto of ["👍", "🫶🏻", "Animo", "Animoooo", "jajaja", "jsjs", "Éxito", "vamos", "lol", "mmm"]) {
       expect(isFillerMessage(texto), texto).toBe(true);
       const d = extract("wa", waText(texto));
       expect(routeAfterInbound(inbound({ is_filler: true }), d)).toBe("sin_respuesta");
@@ -241,7 +241,7 @@ describe("Filtro de mensajes de relleno (antes del clasificador)", () => {
   });
 
   it("sí se contesta lo que sí aporta", () => {
-    for (const texto of ["Hola", "gracias", "sí", "vamos", "cuál es la tasa"]) {
+    for (const texto of ["Hola", "gracias", "sí", "dale", "cuál es la tasa"]) {
       expect(isFillerMessage(texto), texto).toBe(false);
       const d = extract("wa", waText(texto));
       expect(routeAfterInbound(inbound({ is_filler: false }), d)).toBe("clasificador");
@@ -373,6 +373,84 @@ describe("Destino según la clasificación de la IA", () => {
   it("una acción inesperada deriva a un humano, nunca al silencio", () => {
     expect(accionDestination({ accion: "algo_raro" })).toBe("HTTP Request - Handoff WA No Puedo");
     expect(accionDestination({ accion: null })).toBe("HTTP Request - Handoff WA No Puedo");
+  });
+});
+
+describe("Respuestas del FAQ: texto oficial, no redacción del modelo", () => {
+  // El modelo llegó a contestar lo contrario del FAQ (dijo que NO se puede
+  // ayudar con un auto en empeño, cuando el FAQ dice que sí). Ahora el
+  // modelo solo clasifica: el texto sale de una plantilla fija por topic.
+  const evalMapa = (expr: string, accion: unknown, topic: unknown, output: string) => {
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const $ = () => ({ item: { json: { accion, topic, output } } });
+    return new Function("$", `return (${inner});`)($) as string;
+  };
+  const INVENTADO = "TEXTO INVENTADO POR EL MODELO";
+  const topics = [
+    "tasa",
+    "anticipo",
+    "sin_comprobante",
+    "empeno",
+    "cobertura",
+    "garantia",
+    "cita",
+    "aval",
+  ];
+
+  it("cada topic responde con su texto fijo, ignorando lo que redacte el modelo", () => {
+    for (const canal of [spec.faq_map_wa, spec.faq_map_mg]) {
+      for (const topic of topics) {
+        const r = evalMapa(canal, "faq", topic, INVENTADO);
+        expect(r, topic).toBeTruthy();
+        expect(r, topic).not.toContain("INVENTADO");
+      }
+    }
+  });
+
+  it("la pregunta del empeño se contesta afirmativa, como dice el FAQ", () => {
+    // Regresión directa del error visto en producción
+    const r = evalMapa(spec.faq_map_wa, "faq", "empeno", INVENTADO);
+    expect(r.toLowerCase()).toContain("sí");
+    expect(r.toLowerCase()).toContain("refrendo");
+    expect(r.toLowerCase()).not.toContain("no podemos");
+  });
+
+  it("los dos canales dan exactamente el mismo texto", () => {
+    for (const topic of topics) {
+      expect(evalMapa(spec.faq_map_mg, "faq", topic, INVENTADO), topic).toBe(
+        evalMapa(spec.faq_map_wa, "faq", topic, INVENTADO),
+      );
+    }
+  });
+
+  it("un topic no reconocido no inventa: queda vacío y deriva a una persona", () => {
+    for (const canal of [spec.faq_map_wa, spec.faq_map_mg]) {
+      expect(evalMapa(canal, "faq", "topic_inexistente", INVENTADO)).toBe("");
+      expect(evalMapa(canal, "faq", null, INVENTADO)).toBe("");
+    }
+    // Y con la respuesta vacía, el If manda al handoff en vez de callar
+    const ifs = spec.if_nodes as unknown as Record<string, { outs: string[][] }>;
+    expect(ifs["If - ¿FAQ Reconocida? (WA)"].outs[1][0]).toBe("HTTP Request - Handoff WA No Puedo");
+    expect(ifs["If - ¿FAQ Reconocida? (Messenger)"].outs[1][0]).toBe(
+      "HTTP Request - Handoff Messenger No Puedo",
+    );
+  });
+
+  it("el saludo de cierre sigue usando el texto del modelo", () => {
+    const cierre = "¡Con mucho gusto! Cualquier otra duda, aquí estoy 😊";
+    for (const canal of [spec.faq_map_wa, spec.faq_map_mg]) {
+      expect(evalMapa(canal, "saludo", null, cierre)).toBe(cierre);
+    }
+  });
+
+  it("el tono se mantiene amable y neutro", () => {
+    for (const topic of topics) {
+      const r = evalMapa(spec.faq_map_wa, "faq", topic, INVENTADO);
+      // Sin pronombres que marquen género para la persona
+      expect(r).not.toMatch(/\b(bienvenido|bienvenida|estimado|estimada)\b/i);
+      // Sin abrir con saludo: la respuesta puede llegar a media conversación
+      expect(r.toLowerCase().startsWith("hola")).toBe(false);
+    }
   });
 });
 
