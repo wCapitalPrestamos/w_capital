@@ -32,6 +32,20 @@ describe("isFillerMessage", () => {
     expect(isFillerMessage("aplausos")).toBe(true);
   });
 
+  it("detecta ánimos, reacciones y muletillas sin contenido", () => {
+    expect(isFillerMessage("vamos")).toBe(true);
+    expect(isFillerMessage("Vamosss!")).toBe(true);
+    expect(isFillerMessage("ándale")).toBe(true);
+    expect(isFillerMessage("órale")).toBe(true);
+    expect(isFillerMessage("eso")).toBe(true);
+    expect(isFillerMessage("lol")).toBe(true);
+    expect(isFillerMessage("LOL")).toBe(true);
+    expect(isFillerMessage("lmao")).toBe(true);
+    expect(isFillerMessage("mmm")).toBe(true);
+    expect(isFillerMessage("hmmm")).toBe(true);
+    expect(isFillerMessage("ajá")).toBe(true);
+  });
+
   it("detecta risas sueltas y variaciones", () => {
     expect(isFillerMessage("jaja")).toBe(true);
     expect(isFillerMessage("jajaja")).toBe(true);
@@ -54,9 +68,11 @@ describe("isFillerMessage", () => {
     expect(isFillerMessage("sí")).toBe(false);
     expect(isFillerMessage("si")).toBe(false);
     expect(isFillerMessage("no")).toBe(false);
+    // "dale" y "adelante" se quedan fuera del relleno a propósito: son las
+    // que más suenan a "sí, continúe" si alguien las escribe en vez de tocar
+    // un botón, y ahí callarse costaría el trámite.
     expect(isFillerMessage("vale")).toBe(false);
     expect(isFillerMessage("dale")).toBe(false);
-    expect(isFillerMessage("vamos")).toBe(false);
     expect(isFillerMessage("adelante")).toBe(false);
     expect(isFillerMessage("perfecto")).toBe(false);
     expect(isFillerMessage("claro")).toBe(false);

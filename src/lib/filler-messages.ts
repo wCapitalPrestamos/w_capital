@@ -12,6 +12,10 @@ const EMOJI_ONLY_RE =
 
 const LAUGH_RE = /^(ja|je|ji|jo|ha|he|hi|ho|js|xd)+$/;
 
+// Reacciones y muletillas sin contenido. Se comparan ya normalizadas (sin
+// acentos ni letras repetidas), así que "mmm" entra como "m" y "Ándaleee"
+// como "andale".
+
 const ACCENT_MAP: Record<string, string> = {
   á: "a",
   é: "e",
@@ -44,15 +48,27 @@ function collapseRepeats(text: string): string {
 
 const FILLER_WORDS = new Set(
   [
+    // ánimo / celebración
     "animo",
     "suerte",
     "exito",
     "arriba",
     "bravo",
     "felicidades",
-    "wow",
+    "vamos",
+    "andale",
+    "eso",
     "ole",
     "aplausos",
+    // reacciones
+    "wow",
+    "lol",
+    "lmao",
+    "orale",
+    // muletillas sin contenido
+    "mmm",
+    "hmm",
+    "aja",
   ].map(collapseRepeats),
 );
 
