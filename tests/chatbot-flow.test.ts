@@ -303,7 +303,9 @@ describe("Destino según la clasificación de la IA", () => {
       // igual que cualquier otro topic sin plantilla fija (ver describe de abajo).
       ["requisitos", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
       ["tasa_negocio", "WhatsApp - Enviar Tabla Micronegocio", "HTTP Request - Enviar Texto Tabla Micronegocio Messenger"],
-      ["servicios", "HTTP Request - Enviar Servicios WA", "HTTP Request - Enviar Servicios Messenger"],
+      // "servicios" también dejó de tener su tarjeta de botones fija: cae en la
+      // misma respuesta libre del FAQ que cualquier otro topic (pregunta 11).
+      ["servicios", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
       ["otro", "Set - Respuesta FAQ Whatsapp", "Set - Respuesta FAQ Messenger"],
     ];
     for (const [topic, destinoWA, destinoMG] of casos) {
@@ -319,50 +321,14 @@ describe("Destino según la clasificación de la IA", () => {
     expect(accionDestination({ accion: "faq", topic: null })).toBe("Set - Respuesta FAQ Whatsapp");
   });
 
-  it("los botones de servicios respetan los límites de Meta y reusan los payloads del menú", () => {
-    const evalBody = (expr: string, output: string) => {
-      const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
-      const $ = () => ({ item: { json: { senderId: "521662" } } });
-      return new Function("$", "$json", `return (${inner});`)($, { output });
-    };
-    const wa = evalBody(spec.body_servicios_wa, "texto de servicios") as never;
-    const botonesWA = (wa as { interactive: { action: { buttons: { reply: { id: string; title: string } }[] } } })
-      .interactive.action.buttons;
-    expect(botonesWA).toHaveLength(3); // WhatsApp no admite más de 3
-    expect(botonesWA.map((b) => b.reply.id)).toEqual(["INFO_TABLA", "INFO_TASA", "INFO_SOLICITAR"]);
-    for (const b of botonesWA) expect(b.reply.title.length).toBeLessThanOrEqual(20);
-
-    const mg = evalBody(spec.body_servicios_mg, "texto de servicios") as never;
-    const botonesMG = (mg as { message: { attachment: { payload: { buttons: { title: string; payload: string }[] } } } })
-      .message.attachment.payload.buttons;
-    expect(botonesMG).toHaveLength(3);
-    expect(botonesMG.map((b) => b.payload)).toEqual(["INFO_TABLA", "INFO_TASA", "INFO_SOLICITAR"]);
-    for (const b of botonesMG) expect(b.title.length).toBeLessThanOrEqual(20);
+  it("la tarjeta de botones de servicios ya no existe: se eliminó junto con el resto de plantillas fijas", () => {
+    // "qué servicios ofrecen" ahora es una pregunta más del FAQ, contestada en
+    // texto libre por el modelo — sin tarjeta de botones aparte.
+    expect(spec).not.toHaveProperty("body_servicios_wa");
+    expect(spec).not.toHaveProperty("body_servicios_mg");
   });
 
-  it("la respuesta de servicios cierra invitando a elegir, en ambos canales", () => {
-    const evalBody = (expr: string, output: string) => {
-      const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
-      const $ = () => ({ item: { json: { senderId: "521662", output } } });
-      return new Function("$", "$json", `return (${inner});`)($, { output });
-    };
-    const texto = "W Capital es una empresa sonorense...";
-    const wa = evalBody(spec.body_servicios_wa, texto) as {
-      interactive: { body: { text: string } };
-    };
-    const mg = evalBody(spec.body_servicios_mg, texto) as {
-      message: { attachment: { payload: { text: string } } };
-    };
-    for (const cuerpo of [wa.interactive.body.text, mg.message.attachment.payload.text]) {
-      expect(cuerpo).toContain(texto);
-      expect(cuerpo.endsWith("¿Sobre qué le gustaría saber?")).toBe(true);
-    }
-    // Límites de Meta para el cuerpo del mensaje con botones
-    expect(wa.interactive.body.text.length).toBeLessThanOrEqual(1024);
-    expect(mg.message.attachment.payload.text.length).toBeLessThanOrEqual(640);
-  });
-
-  it("los payloads de esos botones son los mismos que ya rutea el menú", () => {
+  it("los payloads de los botones del menú (Tabla/Tasa/Solicitar) siguen funcionando aunque ya no los dispare la tarjeta de servicios", () => {
     // Al hacer clic reusan el flujo existente: sin ruteo nuevo que mantener
     expect(menuDestination(extract("wa", waButton("INFO_TABLA")), "wa")).toBe(
       "WhatsApp - Enviar Tabla Micronegocio",
@@ -461,6 +427,70 @@ describe("Menú principal: Requisitos y Tasa ya no son plantilla fija", () => {
     const p = spec.prompt_respuesta_tasa_menu as string;
     expect(p).toContain("1.97% semanal");
     expect(p).toContain("sin inventar ni cambiar el número");
+  });
+});
+
+describe("Fuera de tema y servicios ya no son mensaje fijo", () => {
+  // Único mensaje/flujo fijo que debe quedar: menú principal, cancelación (+
+  // seguimiento), y "Cómo solicitar" con personal/negocio y el link. Todo lo
+  // demás lo redacta la IA con un buen prompt — incluida la redirección
+  // cuando el cliente se sale del tema, y "qué servicios ofrecen".
+  const evalMapa = (expr: string, output: string) => {
+    const inner = expr.trim().replace(/^=\{\{/, "").replace(/\}\}$/, "");
+    const $ = () => ({ item: { json: { output } } });
+    return new Function("$", `return (${inner});`)($) as string;
+  };
+
+  it("el mecanismo de redacción libre (mismo que el FAQ) es el que ahora alimenta fuera de tema", () => {
+    const texto = "Redacción libre de redirección amable.";
+    expect(evalMapa(spec.faq_map_wa, texto)).toBe(texto);
+  });
+
+  it("el prompt ahora le pide al modelo redactar la redirección de fuera de tema, no descartarla", () => {
+    const p = spec.prompt_message_a_model as string;
+    expect(p).not.toContain('En "output" pon cualquier texto breve (no se usará, se manda un mensaje fijo). IMPORTANTE: "fuera_tema"');
+    expect(p).toContain("redirija con calidez hacia WCapital");
+    expect(p).toContain('agradezca que comparta antes de redirigir');
+  });
+
+  it("qué servicios ofrecen ya no dispara una tarjeta de botones fija: cae en el FAQ libre", () => {
+    expect(accionDestination({ accion: "faq", topic: "servicios" }, "wa")).toBe(
+      "Set - Respuesta FAQ Whatsapp",
+    );
+    expect(accionDestination({ accion: "faq", topic: "servicios" }, "mg")).toBe(
+      "Set - Respuesta FAQ Messenger",
+    );
+  });
+});
+
+describe("Intenciones múltiples y despedidas se manejan correctamente", () => {
+  const promptWA = spec.prompt_message_a_model as string;
+
+  it("una pregunta múltiple se contesta completa en un solo mensaje (ya probado, se reafirma tras los cambios)", () => {
+    expect(promptWA).toContain("responde TODAS las partes");
+  });
+
+  it("un saludo/agradecimiento combinado con una pregunta real se clasifica por la intención, no como saludo", () => {
+    expect(promptWA).toContain(
+      'si el mensaje combina un saludo/agradecimiento con una pregunta o intención clara',
+    );
+  });
+
+  it("una despedida sola (saludo_tipo: cierre) también es redacción libre del modelo, sin plantilla", () => {
+    // "cierre" nunca tuvo su propio Set con texto fijo — siempre usó el mismo
+    // paso libre que el resto del FAQ (Set - Respuesta FAQ Whatsapp/Messenger).
+    expect(accionDestination({ accion: "saludo", saludo_tipo: "cierre" }, "wa")).toBe(
+      "Set - Respuesta FAQ Whatsapp",
+    );
+    expect(accionDestination({ accion: "saludo", saludo_tipo: "cierre" }, "mg")).toBe(
+      "Set - Respuesta FAQ Messenger",
+    );
+  });
+
+  it("una despedida a mitad de conversación nunca reabre el menú (nunca es saludo_tipo: inicio)", () => {
+    expect(promptWA).toContain(
+      "Un mensaje de ánimo, agradecimiento, o una reacción/emoji suelto que llega A MITAD de una conversación",
+    );
   });
 });
 
