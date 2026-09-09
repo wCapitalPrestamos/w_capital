@@ -395,6 +395,7 @@ describe("Respuestas del FAQ: texto oficial, no redacción del modelo", () => {
     "garantia",
     "cita",
     "aval",
+    "proceso",
   ];
 
   it("cada topic responde con su texto fijo, ignorando lo que redacte el modelo", () => {
