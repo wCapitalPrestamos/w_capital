@@ -71,7 +71,21 @@ export async function findOrCreateContact(
     .select("*")
     .single();
 
-  if (error) throw new Error(`contact insert failed: ${error.message}`);
+  if (error) {
+    // unique_violation: un webhook duplicado (reintento de Meta, o dos
+    // mensajes casi simultáneos) alcanzó a crear el contacto entre nuestro
+    // select y este insert — no es un error real, solo recupera la fila
+    // que el otro request ya insertó (mismo patrón que /api/n8n/inbound).
+    if (error.code === "23505") {
+      const { data: raced } = await db
+        .from("contacts")
+        .select("*")
+        .eq(idColumn, externalThreadId)
+        .single();
+      if (raced) return raced as Contact;
+    }
+    throw new Error(`contact insert failed: ${error.message}`);
+  }
   return created as Contact;
 }
 
@@ -100,7 +114,21 @@ export async function findOrCreateConversation(
     .select("*")
     .single();
 
-  if (error) throw new Error(`conversation insert failed: ${error.message}`);
+  if (error) {
+    // Mismo caso que en findOrCreateContact: dos webhooks casi simultáneos
+    // (reintento de Meta) para el mismo hilo pueden chocar contra el unique
+    // (channel, external_thread_id) entre nuestro select y este insert.
+    if (error.code === "23505") {
+      const { data: raced } = await db
+        .from("conversations")
+        .select("*")
+        .eq("channel", channel)
+        .eq("external_thread_id", externalThreadId)
+        .single();
+      if (raced) return raced as Conversation;
+    }
+    throw new Error(`conversation insert failed: ${error.message}`);
+  }
   return created as Conversation;
 }
 
