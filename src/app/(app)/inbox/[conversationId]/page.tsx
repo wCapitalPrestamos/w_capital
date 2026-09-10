@@ -28,11 +28,14 @@ export default async function ConversationPage({
   // transmite en su propio <Suspense> más abajo, sin bloquear esto.
   const [{ data: messages }, { data: profiles }, { data: attentionEvents }] =
     await Promise.all([
+      // Descendente + limit para quedarnos con los últimos 500 mensajes
+      // (no los primeros 500) en conversaciones largas — se revierte antes
+      // de pasarlos a Thread, que espera orden cronológico.
       supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(500),
       supabase.from("profiles").select("id, full_name, role"),
       supabase
@@ -57,7 +60,7 @@ export default async function ConversationPage({
         key={conversationId}
         conversation={conversation}
         contact={conversation.contact}
-        initialMessages={(messages ?? []) as Message[]}
+        initialMessages={[...((messages ?? []) as Message[])].reverse()}
         initialAttentionMessageIds={(attentionEvents ?? [])
           .map((e) => e.message_id)
           .filter((id): id is string => id !== null)}

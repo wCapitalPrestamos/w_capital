@@ -178,7 +178,7 @@ export function Thread({
           .from("messages")
           .select("*")
           .eq("conversation_id", conversation.id)
-          .order("created_at", { ascending: true })
+          .order("created_at", { ascending: false })
           .limit(500),
         supabase
           .from("conversations")
@@ -194,9 +194,14 @@ export function Thread({
       ]);
       if (cancelled) return;
       if (freshMessages) {
+        // Se pidió orden descendente para quedarnos con los últimos 500
+        // (no los primeros 500) cuando la conversación excede el límite;
+        // se revierte aquí para volver al orden cronológico que espera el
+        // resto del componente.
+        const ordered = [...(freshMessages as Message[])].reverse();
         setMessages((prev) => {
           const pending = prev.filter((m) => m.id.startsWith("temp-"));
-          return [...(freshMessages as Message[]), ...pending];
+          return [...ordered, ...pending];
         });
       }
       if (freshConversation) {
