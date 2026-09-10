@@ -65,10 +65,10 @@ export function BoardColumn({
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col rounded-2xl px-1 py-1.5 transition-colors",
+        "flex w-full shrink-0 flex-col rounded-2xl px-1 py-1.5 transition-colors md:w-(--col-w)",
         highlight && "bg-brand-soft",
       )}
-      style={{ width }}
+      style={{ "--col-w": `${width}px` } as React.CSSProperties}
     >
       <div className="flex items-center gap-2 px-1.5 pb-3.5 pt-1">
         <span

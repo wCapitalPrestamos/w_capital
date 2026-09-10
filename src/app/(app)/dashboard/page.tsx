@@ -92,7 +92,7 @@ export default async function DashboardPage() {
                   {parOver ? "Sobre el límite" : "En objetivo"}
                 </Chip>
               </div>
-              <div className="mt-3 flex items-baseline gap-2.5">
+              <div className="mt-3 flex flex-wrap items-baseline gap-2.5">
                 <p
                   className={`font-serif text-[30px] leading-none sm:text-[42px] ${parOver ? "text-bad" : ""}`}
                 >
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
             </section>
 
             {/* Esperado / cobrado de la semana */}
-            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-[22px] border border-line-2 bg-line-2 shadow-card">
+            <section className="grid grid-cols-1 gap-px overflow-hidden rounded-[22px] border border-line-2 bg-line-2 shadow-card sm:grid-cols-2">
               <div className="min-w-0 bg-surface p-[20px_18px]">
                 <p className="text-[11.5px] tracking-[.09em] uppercase text-ink-3">
                   Esperado

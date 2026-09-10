@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { ClickableCard, boardCardClass } from "@/components/board";
 import { ClickableRow } from "@/components/contacts/clickable-row";
 import { NewContactDialog } from "@/components/contacts/new-contact-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -150,7 +151,59 @@ export default async function ClientesPage({
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-[20px] border border-line-2 bg-surface shadow-card">
+        <div className="flex flex-col gap-2.5 md:hidden">
+          {visible.map((c: Contact) => {
+            const s = statusByContact.get(c.id);
+            const initials =
+              (c.full_name || "?")
+                .split(" ")
+                .slice(0, 2)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase() || "?";
+            return (
+              <ClickableCard
+                key={c.id}
+                href={`/clientes/${c.id}`}
+                className={boardCardClass}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-[11px] bg-brand-soft text-xs font-semibold text-brand-ink">
+                    {initials}
+                  </span>
+                  <div className="min-w-0 flex-1 leading-[1.3]">
+                    <p className="truncate font-semibold tracking-[-.01em]">
+                      {c.full_name || "Sin nombre"}
+                    </p>
+                    <p className="text-[11.5px] text-ink-3">
+                      {s?.business
+                        ? borrowerTypeLabels.business
+                        : borrowerTypeLabels.personal}
+                    </p>
+                  </div>
+                  {s && <Chip tone={s.tone}>{s.label}</Chip>}
+                </div>
+                <div className="mt-2.5 flex items-center justify-between gap-2 text-[12.5px] text-ink-2">
+                  <span className="truncate">
+                    {c.phone ?? "—"} · {sourceChannelLabels[c.source_channel]}
+                  </span>
+                  <span className="shrink-0 text-ink-3">
+                    {formatDate(c.created_at)}
+                  </span>
+                </div>
+              </ClickableCard>
+            );
+          })}
+          {visible.length === 0 && (
+            <p className="py-10 text-center text-sm text-ink-3">
+              {query
+                ? "Sin resultados para tu búsqueda."
+                : "Aún no hay clientes en este filtro."}
+            </p>
+          )}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-[20px] border border-line-2 bg-surface shadow-card md:block">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">

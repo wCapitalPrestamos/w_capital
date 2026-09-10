@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import {
   Archive,
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Bot,
   Check,
@@ -234,7 +235,11 @@ export function Thread({
                   m.body === incoming.body
                 ),
             );
-            return [...withoutTemp, incoming];
+            return [...withoutTemp, incoming].sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime(),
+            );
           });
           if (incoming.direction === "inbound") {
             setConversation((c) => ({
@@ -456,6 +461,13 @@ export function Thread({
       {/* Encabezado */}
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-3.5 gap-y-2 border-b border-line-2 bg-surface px-4 py-3.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/inbox"
+            aria-label="Volver a la bandeja"
+            className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-line-2 md:hidden"
+          >
+            <ArrowLeft className="size-[18px]" strokeWidth={1.8} />
+          </Link>
           <span className="inline-flex size-[38px] shrink-0 items-center justify-center rounded-[13px] bg-brand-soft text-sm font-semibold text-brand-ink">
             {name.slice(0, 1).toUpperCase()}
           </span>

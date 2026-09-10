@@ -27,16 +27,16 @@ export function CollectionBars({
           Cobrado
         </span>
       </div>
-      <div className="mt-4 flex h-[210px] items-end gap-[18px]">
+      <div className="mt-4 flex h-[210px] items-end gap-1.5 sm:gap-[18px]">
         {data.map((w, i) => (
           <div
             key={w.label}
-            className="flex h-full flex-1 flex-col items-center gap-2.5"
+            className="flex h-full min-w-0 flex-1 flex-col items-center gap-2.5"
           >
-            <div className="flex w-full flex-1 items-end justify-center gap-[5px]">
+            <div className="flex w-full flex-1 items-end justify-center gap-1 sm:gap-[5px]">
               <div
                 title={`Esperado ${formatMoney(w.expected)}`}
-                className="w-5 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] opacity-85"
+                className="w-3 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] opacity-85 sm:w-5"
                 style={{
                   height: `${(w.expected / max) * 100}%`,
                   background: EXPECTED_COLOR,
@@ -45,7 +45,7 @@ export function CollectionBars({
               />
               <div
                 title={`Cobrado ${formatMoney(w.collected)}`}
-                className="w-5 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] bg-brand"
+                className="w-3 origin-bottom animate-grow-bar rounded-t-[6px] rounded-b-[2px] bg-brand sm:w-5"
                 style={{
                   height: `${(w.collected / max) * 100}%`,
                   animationDelay: `${i * 0.06 + 0.08}s`,

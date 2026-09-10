@@ -61,7 +61,58 @@ export function UsersTable({
     <div className="space-y-4">
       <NewUserDialog />
 
-      <div className="rounded-xl border bg-card">
+      <div className="flex flex-col gap-2.5 md:hidden">
+        {profiles.map((p) => (
+          <div key={p.id} className="rounded-2xl border border-line-2 bg-surface p-[15px_16px] shadow-card">
+            <p className="font-medium">
+              {p.full_name}
+              {p.id === myId && (
+                <span className="ml-2 text-xs text-muted-foreground">(tú)</span>
+              )}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {p.active ? (
+                <Badge className="bg-success/15 text-success border-transparent">
+                  Activa
+                </Badge>
+              ) : (
+                <Badge variant="secondary">Desactivada</Badge>
+              )}
+              {pendingIds.has(p.id) && (
+                <Badge variant="outline">Invitación pendiente</Badge>
+              )}
+            </div>
+            <div className="mt-3">
+              <Select
+                value={p.role}
+                onValueChange={(v) => v && handleRole(p.id, v as Role)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(roleLabels) as Role[]).map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {roleLabels[role]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              variant={p.active ? "outline" : "default"}
+              disabled={pending || p.id === myId}
+              onClick={() => handleActive(p.id, !p.active)}
+              className="mt-2.5 w-full"
+            >
+              {p.active ? "Desactivar" : "Activar"}
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden rounded-xl border bg-card md:block">
         <Table>
           <TableHeader>
             <TableRow>

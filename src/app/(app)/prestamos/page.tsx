@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClickableCard, boardCardClass } from "@/components/board";
 import { ClickableRow } from "@/components/contacts/clickable-row";
 import { PageHeader } from "@/components/page-header";
 import { Semaphore } from "@/components/loans/semaphore";
@@ -83,7 +84,57 @@ export default async function PrestamosPage() {
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-[20px] border border-line-2 bg-surface shadow-card">
+        <div className="flex flex-col gap-2.5 md:hidden">
+          {rows.map((l) => (
+            <ClickableCard
+              key={l.loan_id}
+              href={`/prestamos/${l.loan_id}`}
+              className={boardCardClass}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[12.5px] font-semibold">
+                  {loanFolio(l.folio)}
+                </span>
+                <LoanStatusBadge status={l.status} />
+              </div>
+              <p className="mt-2 truncate text-[14.5px] font-semibold tracking-[-.01em]">
+                {l.contact ? l.contact.full_name || l.contact.phone || "Sin nombre" : "—"}
+              </p>
+              <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-[12.5px]">
+                <div>
+                  <p className="text-ink-3">Prestado</p>
+                  <p className="font-mono">{formatMoney(l.principal)}</p>
+                </div>
+                <div>
+                  <p className="text-ink-3">Saldo capital</p>
+                  <p className="font-mono">{formatMoney(l.outstanding_principal)}</p>
+                </div>
+                <div>
+                  <p className="text-ink-3">Cuota semanal</p>
+                  <p className="font-mono">{formatMoney(l.weekly_payment)}</p>
+                </div>
+                <div>
+                  <p className="text-ink-3">Desembolso</p>
+                  <p>{formatDate(l.disbursed_at)}</p>
+                </div>
+              </div>
+              <div className="mt-2.5 border-t border-line-2 pt-2.5">
+                <Semaphore
+                  daysLate={l.days_late}
+                  overdueCount={l.overdue_count}
+                  withLabel
+                />
+              </div>
+            </ClickableCard>
+          ))}
+          {rows.length === 0 && (
+            <p className="py-10 text-center text-sm text-ink-3">
+              Aún no hay préstamos desembolsados.
+            </p>
+          )}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-[20px] border border-line-2 bg-surface shadow-card md:block">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">

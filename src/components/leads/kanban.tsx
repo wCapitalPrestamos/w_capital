@@ -12,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Ban } from "lucide-react";
+import { ArrowRightLeft, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { moveLead } from "@/actions/leads";
 import { BoardCardMeta, BoardColumn, boardCardClass } from "@/components/board";
@@ -24,6 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Chip, type ChipTone } from "@/components/status-badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,12 +66,9 @@ export function LeadsKanban({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const leadId = String(active.id);
-    const newStage = String(over.id) as LeadStage;
+  // Compartido entre soltar una tarjeta arrastrada y elegir el estado desde
+  // el selector de la tarjeta (móvil) — mismo update optimista en ambos casos.
+  const handleMove = (leadId: string, newStage: LeadStage) => {
     const lead = leads.find((l) => l.id === leadId);
     if (!lead || lead.stage === newStage) return;
 
@@ -80,6 +83,12 @@ export function LeadsKanban({
         toast.error(result.error ?? "No se pudo mover el lead.");
       }
     });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    handleMove(String(active.id), String(over.id) as LeadStage);
   };
 
   const handleDiscard = (leadId: string, reason: string) => {
@@ -109,6 +118,7 @@ export function LeadsKanban({
             dot={dot}
             leads={leads.filter((l) => l.stage === stage)}
             onDiscard={handleDiscard}
+            onMove={handleMove}
           />
         ))}
       </BoardZoom>
@@ -122,12 +132,14 @@ function KanbanColumn({
   dot,
   leads,
   onDiscard,
+  onMove,
 }: {
   stage: LeadStage;
   tone: ChipTone;
   dot: string;
   leads: LeadWithContact[];
   onDiscard: (leadId: string, reason: string) => void;
+  onMove: (leadId: string, newStage: LeadStage) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const sum = leads.reduce((a, l) => a + (l.interest_amount ?? 0), 0);
@@ -148,6 +160,7 @@ function KanbanColumn({
             tone={tone}
             stage={stage}
             onDiscard={onDiscard}
+            onMove={onMove}
           />
         ))}
       </BoardColumn>
@@ -160,11 +173,13 @@ function LeadCard({
   tone,
   stage,
   onDiscard,
+  onMove,
 }: {
   lead: LeadWithContact;
   tone: ChipTone;
   stage: LeadStage;
   onDiscard: (leadId: string, reason: string) => void;
+  onMove: (leadId: string, newStage: LeadStage) => void;
 }) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -214,8 +229,42 @@ function LeadCard({
             ? sourceChannelLabels[lead.contact.source_channel]
             : "Sin canal"}
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-3.5 md:gap-1.5">
           <Chip tone={tone}>{leadStageLabels[stage]}</Chip>
+          {/* Mover de estado sin arrastrar — en una columna larga, arrastrar
+              en móvil es incómodo. Oculto en escritorio, donde ya se usa
+              drag. Objetivo táctil grande (~40px) y bien separado del botón
+              de descartar, para no picar uno por accidente en vez del otro
+              — en desktop este botón ni se muestra, así que no afecta la
+              densidad ahí. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  title="Mover a otro estado"
+                  aria-label="Mover a otro estado"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="shrink-0 rounded p-2.5 text-ink-3 hover:bg-line-2 hover:text-brand md:hidden"
+                />
+              }
+            >
+              <ArrowRightLeft className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {STAGES.filter((s) => s.stage !== stage).map((s) => (
+                <DropdownMenuItem
+                  key={s.stage}
+                  onClick={() => {
+                    if (s.stage === "discarded") setDiscardOpen(true);
+                    else onMove(lead.id, s.stage);
+                  }}
+                >
+                  {leadStageLabels[s.stage]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {stage !== "discarded" && (
             <button
               type="button"
@@ -226,7 +275,7 @@ function LeadCard({
                 e.stopPropagation();
                 setDiscardOpen(true);
               }}
-              className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-line-2 hover:text-destructive"
+              className="shrink-0 rounded p-2.5 text-ink-3 hover:bg-line-2 hover:text-destructive md:p-0.5"
             >
               <Ban className="size-3.5" />
             </button>

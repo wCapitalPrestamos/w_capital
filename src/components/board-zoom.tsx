@@ -29,7 +29,7 @@ export function BoardZoom({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-end gap-1.5">
+      <div className="mb-4 hidden items-center justify-end gap-1.5 md:flex">
         <div className="flex items-center gap-0.5 rounded-[11px] border border-line-2 bg-surface p-[3px] shadow-card">
           <button type="button" onClick={() => setZoom(zoom - 0.1)} title="Alejar" className={ctrl}>
             −
@@ -52,7 +52,7 @@ export function BoardZoom({ children }: { children: React.ReactNode }) {
       </div>
       <div
         ref={boardRef}
-        className="flex min-h-[62vh] w-max items-start gap-[18px]"
+        className="flex flex-col gap-[18px] md:w-max md:min-h-[62vh] md:flex-row md:items-start"
         style={{ zoom } as CSSProperties}
       >
         {children}

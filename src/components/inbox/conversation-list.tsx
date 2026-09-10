@@ -115,7 +115,7 @@ export function ConversationList({
   }, [conversations, tab, profileId, search]);
 
   return (
-    <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-r border-line-2 bg-surface xl:w-[326px]">
+    <aside className="flex h-full w-full shrink-0 flex-col overflow-hidden border-r border-line-2 bg-surface md:w-[280px] xl:w-[326px]">
       <div className="flex flex-col gap-2.5 border-b border-line-2 p-4 pb-3.5">
         <div className="flex h-[34px] items-center gap-2 rounded-[10px] border border-line-2 bg-surface-2 px-[11px] text-ink-3">
           <Search className="size-[15px] shrink-0" strokeWidth={1.7} />
