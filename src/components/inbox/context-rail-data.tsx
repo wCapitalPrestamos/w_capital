@@ -1,6 +1,6 @@
 import { ContextRail } from "@/components/inbox/context-rail";
 import { createClient } from "@/lib/supabase/server";
-import type { Contact, LoanApplication } from "@/lib/types";
+import type { Contact, DocumentRow, LoanApplication } from "@/lib/types";
 
 // Trae el contexto del cliente (solicitud, documentos, historial) por
 // separado del hilo de mensajes, para que ese fetch no bloquee el render
@@ -31,24 +31,22 @@ export async function ContextRailData({
       .eq("contact_id", contactId),
   ]);
 
-  let docsCount = 0;
-  let docsPending = 0;
+  let documents: Pick<DocumentRow, "id" | "application_id" | "review_status">[] = [];
   if (application) {
     const { data: docs } = await supabase
       .from("documents")
-      .select("id, review_status")
+      .select("id, application_id, review_status")
       .eq("application_id", application.id);
-    docsCount = docs?.length ?? 0;
-    docsPending = (docs ?? []).filter((d) => d.review_status === "pending").length;
+    documents = docs ?? [];
   }
 
   return (
     <ContextRail
+      contactId={contactId}
       contact={contact}
-      application={application ?? null}
-      docsCount={docsCount}
-      docsPending={docsPending}
-      loans={loans ?? []}
+      initialApplication={application ?? null}
+      initialDocuments={documents}
+      initialLoans={loans ?? []}
       conversationId={conversationId}
     />
   );
