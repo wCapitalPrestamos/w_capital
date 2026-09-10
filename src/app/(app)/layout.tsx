@@ -14,7 +14,7 @@ export default async function AppLayout({
   const today = todayHermosillo();
 
   // Contadores del sidebar + cobranza de hoy
-  const [unreadRes, leadsRes, appsRes, dueRes, paidRes] = await Promise.all([
+  const [unreadRes, leadsRes, appsRes, dueRes, paidRes, notificationsRes] = await Promise.all([
     supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
@@ -33,6 +33,12 @@ export default async function AppLayout({
       .select("total_due, status")
       .eq("due_date", today),
     supabase.from("payments").select("amount").eq("paid_on", today),
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("recipient_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const due = dueRes.data ?? [];
@@ -50,7 +56,12 @@ export default async function AppLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar profile={profile} counts={counts} today={todayStats} />
+      <AppSidebar
+        profile={profile}
+        counts={counts}
+        today={todayStats}
+        initialNotifications={notificationsRes.data ?? []}
+      />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
     </SidebarProvider>
   );

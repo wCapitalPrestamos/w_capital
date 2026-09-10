@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { signOut } from "@/actions/auth";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useSidebar } from "@/components/sidebar-context";
 import {
   DropdownMenu,
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatMoney } from "@/lib/format";
 import { roleLabels } from "@/lib/labels";
-import type { Profile } from "@/lib/types";
+import type { Notification, Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -56,10 +57,12 @@ export function AppSidebar({
   profile,
   counts,
   today,
+  initialNotifications,
 }: {
   profile: Profile;
   counts: SidebarCounts;
   today: SidebarToday;
+  initialNotifications: Notification[];
 }) {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
@@ -101,14 +104,20 @@ export function AppSidebar({
               CRM
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            className="ml-auto inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-line-2 md:hidden"
-            aria-label="Cerrar menú"
-          >
-            <X className="size-[18px]" strokeWidth={1.8} />
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell
+              profileId={profile.id}
+              initialNotifications={initialNotifications}
+            />
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-line-2 md:hidden"
+              aria-label="Cerrar menú"
+            >
+              <X className="size-[18px]" strokeWidth={1.8} />
+            </button>
+          </div>
         </div>
 
         <p

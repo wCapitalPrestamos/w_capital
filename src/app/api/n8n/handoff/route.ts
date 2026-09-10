@@ -92,6 +92,46 @@ export async function POST(request: Request) {
     console.error("[handoff] no se pudo registrar el evento de atención", attentionError);
   }
 
+  // Evento B: el bot marcó la conversación como que necesita atención humana
+  // — sea porque el cliente lo pidió explícitamente o porque el mensaje
+  // salió de lo que el bot sabe manejar (el caso más común en la práctica).
+  // Avisa a quien tiene la conversación asignada, o a todas las Asesoras si
+  // nadie la tiene tomada aún.
+  //
+  // Guarda anti-duplicado: si ya hay una notificación de este tipo sin leer
+  // para esta conversación, no se manda otra — evita spamear la campana con
+  // un aviso por cada mensaje fuera de alcance de una misma conversación.
+  const { data: alreadyNotified } = await db
+    .from("notifications")
+    .select("id")
+    .eq("entity_type", "conversation")
+    .eq("entity_id", conversation.id)
+    .eq("type", "chat_human_requested")
+    .is("read_at", null)
+    .maybeSingle();
+
+  if (!alreadyNotified) {
+    const notifyArgs = {
+      p_type: "chat_human_requested",
+      p_title:
+        body.reason === "client_requested"
+          ? "Piden hablar con un humano"
+          : "Necesita atención humana",
+      p_body:
+        body.reason === "client_requested"
+          ? "Un cliente pidió hablar con una persona en el chat."
+          : "El bot no pudo resolver un mensaje del cliente en el chat.",
+      p_entity_type: "conversation",
+      p_entity_id: conversation.id,
+      p_link_path: `/inbox/${conversation.id}`,
+    };
+    if (conversation.assigned_to) {
+      await db.rpc("notify_profile", { p_recipient_id: conversation.assigned_to, ...notifyArgs });
+    } else {
+      await db.rpc("notify_role", { p_role: "advisor", ...notifyArgs });
+    }
+  }
+
   await db.from("webhook_events").insert({
     source: "n8n:handoff",
     payload: raw ?? {},

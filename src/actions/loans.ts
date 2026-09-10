@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
+import { formatMissing } from "@/lib/labels";
 import { allocatePayment, type AllocatableInstallment } from "@/lib/loans/allocate-payment";
 import { buildSchedule } from "@/lib/loans/amortization";
 import { todayHermosillo } from "@/lib/format";
@@ -11,7 +12,11 @@ import type { Installment, LoanApplication, PaymentMethod } from "@/lib/types";
 // Desembolso: calcula el calendario en TS y lo persiste atómicamente vía RPC
 export async function disburseLoan(
   applicationId: string,
-  input: { disbursed_at: string; first_payment_date: string },
+  input: {
+    disbursed_at: string;
+    first_payment_date: string;
+    bank_account_details?: string;
+  },
 ): Promise<{ ok: boolean; loanId?: string; error?: string }> {
   const profile = await requireProfile();
   if (!["admin", "analyst"].includes(profile.role)) {
@@ -32,6 +37,28 @@ export async function disburseLoan(
   }
   if (!app.approved_amount || !app.approved_term_weeks) {
     return { ok: false, error: "Faltan monto o plazo aprobados." };
+  }
+
+  const bankAccountDetails = input.bank_account_details?.trim() || app.bank_account_details;
+  if (bankAccountDetails && bankAccountDetails !== app.bank_account_details) {
+    const { error: bankError } = await supabase
+      .from("loan_applications")
+      .update({ bank_account_details: bankAccountDetails })
+      .eq("id", applicationId);
+    if (bankError) {
+      return { ok: false, error: `No se pudieron guardar los datos bancarios: ${bankError.message}` };
+    }
+  }
+
+  const { data: missing } = await supabase.rpc(
+    "application_missing_disbursement_requirements",
+    { p_application_id: applicationId },
+  );
+  if (missing && (missing as string[]).length > 0) {
+    return {
+      ok: false,
+      error: `Faltan datos/documentos antes de desembolsar: ${formatMissing(missing as string[])}.`,
+    };
   }
 
   let schedule;

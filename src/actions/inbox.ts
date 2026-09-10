@@ -352,6 +352,19 @@ export async function reassignConversation(
     .eq("id", conversationId);
 
   if (error) return { ok: false, error: error.message };
+
+  if (profileId !== conversation.assigned_to) {
+    await supabase.rpc("notify_profile", {
+      p_recipient_id: profileId,
+      p_type: "chat_reassigned",
+      p_title: "Conversación reasignada",
+      p_body: "Te asignaron una conversación en el inbox.",
+      p_entity_type: "conversation",
+      p_entity_id: conversationId,
+      p_link_path: `/inbox/${conversationId}`,
+    });
+  }
+
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
@@ -374,6 +387,20 @@ export async function resolveNeedsHuman(
     .is("resolved_at", null);
   if (messageId) query = query.eq("message_id", messageId);
   await query;
+
+  // Si ya no queda ninguna atención pendiente en la conversación, limpia
+  // también las notificaciones de chat asociadas (ver 0026) — evita que se
+  // queden "sin leer" para siempre y bloqueen el aviso anti-duplicado del
+  // webhook de handoff.
+  const { count: stillOpen } = await supabase
+    .from("conversation_attention_events")
+    .select("id", { count: "exact", head: true })
+    .eq("conversation_id", conversationId)
+    .is("resolved_at", null);
+  if (!stillOpen) {
+    await supabase.rpc("resolve_chat_notifications", { p_conversation_id: conversationId });
+  }
+
   revalidatePath(`/inbox/${conversationId}`);
 }
 

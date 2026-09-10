@@ -8,6 +8,7 @@ import type {
   InstallmentStatus,
   LeadStage,
   LoanStatus,
+  NotificationType,
   PaymentMethod,
   ReviewStatus,
   Role,
@@ -81,7 +82,21 @@ export const docTypeLabels: Record<DocType, string> = {
   bank_statement: "Estado de cuenta bancario",
   collateral: "Garantía (propiedad o factura)",
   aval_ine: "INE del aval",
+  signed_contract: "Contrato firmado",
   other: "Otro documento",
+};
+
+export const notificationTypeLabels: Record<NotificationType, string> = {
+  application_ready_for_review: "Documentación completa",
+  application_status_changed: "Cambio de estatus",
+  application_cancelled: "Solicitud cancelada",
+  document_rejected: "Documento rechazado",
+  loan_disbursed: "Préstamo desembolsado",
+  chat_stale: "Chat sin respuesta",
+  chat_unassigned_new_message: "Mensaje nuevo sin asignar",
+  chat_human_requested: "Piden hablar con un humano",
+  chat_reassigned: "Conversación reasignada",
+  application_reassigned: "Solicitud reasignada",
 };
 
 export const reviewStatusLabels: Record<ReviewStatus, string> = {
@@ -109,6 +124,35 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   transfer: "Transferencia",
   deposit: "Depósito",
 };
+
+// Códigos que devuelven application_missing_requirements /
+// application_missing_disbursement_requirements (ver supabase/migrations/
+// 0022_application_requirements.sql) — para mostrarlos legibles en la UI.
+export const missingRequirementLabels: Record<string, string> = {
+  application_not_found: "Solicitud no encontrada",
+  contact_full_name: "Nombre del cliente",
+  contact_phone: "Teléfono del cliente",
+  borrower_type: "Tipo de préstamo (personal/negocio)",
+  business_name: "Nombre del negocio",
+  requested_amount: "Monto solicitado",
+  collateral_type: "Tipo de garantía",
+  collateral_description: "Descripción de la garantía",
+  aval_name: "Nombre del aval",
+  aval_phone: "Teléfono del aval",
+  credit_authorization: "Autorización de solicitud de crédito",
+  bureau_authorization: "Autorización de consulta en buró",
+  ine: "INE / Pasaporte",
+  proof_of_address: "Comprobante de domicilio",
+  proof_of_income_or_bank_statement: "Comprobante de ingresos o estado de cuenta",
+  collateral: "Documento de garantía",
+  aval_ine: "INE del aval",
+  signed_contract: "Contrato firmado",
+  bank_account_details: "Datos de la cuenta bancaria",
+};
+
+export function formatMissing(codes: string[]): string {
+  return codes.map((c) => missingRequirementLabels[c] ?? c).join(", ");
+}
 
 export function applicationFolio(folio: number): string {
   return `SOL-${String(folio).padStart(6, "0")}`;

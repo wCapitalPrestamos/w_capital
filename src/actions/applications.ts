@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { TRANSITIONS } from "@/lib/application-transitions";
+import { formatMissing } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import type { ApplicationStatus, BorrowerType, CollateralType } from "@/lib/types";
 
@@ -87,6 +88,24 @@ export async function changeApplicationStatus(
     return { ok: false, error: "Indica monto y plazo aprobados." };
   }
 
+  // Antes de mandarla a revisión, la Asesora debe tener capturados los
+  // datos básicos y subidos los documentos mínimos — el Analista revisa y
+  // aprueba cada documento después, pero no debe ni ver la solicitud hasta
+  // que esto esté completo (misma fuente de verdad que dispara la
+  // notificación de "documentación completa", ver 0022_application_requirements.sql).
+  if (app.status === "docs_pending" && to === "under_review") {
+    const { data: missing } = await supabase.rpc(
+      "application_missing_requirements",
+      { p_application_id: applicationId },
+    );
+    if (missing && (missing as string[]).length > 0) {
+      return {
+        ok: false,
+        error: `Faltan datos/documentos antes de mandarla a revisión: ${formatMissing(missing as string[])}.`,
+      };
+    }
+  }
+
   const patch: Record<string, unknown> = { status: to };
   if (to === "approved") {
     patch.approved_amount = extra!.approved_amount;
@@ -160,12 +179,28 @@ export async function reassignApplication(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: app, error } = await supabase
     .from("loan_applications")
     .update({ [field]: profileId })
-    .eq("id", applicationId);
+    .eq("id", applicationId)
+    .select("folio")
+    .single();
 
   if (error) return { ok: false, error: error.message };
+
+  if (profileId) {
+    const folio = `SOL-${String(app.folio).padStart(6, "0")}`;
+    await supabase.rpc("notify_profile", {
+      p_recipient_id: profileId,
+      p_type: "application_reassigned",
+      p_title: "Solicitud reasignada",
+      p_body: `${folio} te fue asignada como ${field === "advisor_id" ? "asesora" : "analista"}.`,
+      p_entity_type: "application",
+      p_entity_id: applicationId,
+      p_link_path: `/solicitudes/${applicationId}`,
+    });
+  }
+
   revalidatePath(`/solicitudes/${applicationId}`);
   return { ok: true };
 }

@@ -48,7 +48,20 @@ export type DocType =
   | "bank_statement"
   | "collateral"
   | "aval_ine"
+  | "signed_contract"
   | "other";
+export type NotificationType =
+  | "application_ready_for_review"
+  | "application_status_changed"
+  | "application_cancelled"
+  | "document_rejected"
+  | "loan_disbursed"
+  | "chat_stale"
+  | "chat_unassigned_new_message"
+  | "chat_human_requested"
+  | "chat_reassigned"
+  | "application_reassigned";
+export type NotificationEntityType = "conversation" | "application" | "lead" | "loan";
 export type ReviewStatus = "pending" | "approved" | "rejected";
 export type LoanStatus = "active" | "paid_off" | "overdue" | "written_off";
 export type InstallmentStatus = "pending" | "partial" | "paid" | "overdue";
@@ -95,6 +108,19 @@ export interface Conversation {
   last_inbound_at: string | null;
   last_preview: string;
   unread_count: number;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  recipient_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  entity_type: NotificationEntityType;
+  entity_id: string;
+  link_path: string;
+  read_at: string | null;
   created_at: string;
 }
 
@@ -158,6 +184,7 @@ export interface LoanApplication {
   bureau_authorization_accepted_at: string | null;
   approved_amount: number | null;
   approved_term_weeks: number | null;
+  bank_account_details: string | null;
   weekly_rate: number;
   advisor_id: string | null;
   analyst_id: string | null;

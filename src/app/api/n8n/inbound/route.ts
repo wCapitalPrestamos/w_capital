@@ -123,6 +123,22 @@ export async function POST(request: Request) {
       throw new Error(insertError.message);
     }
 
+    // Evento B: primer mensaje de una conversación sin asignar — avisa a
+    // todas las Asesoras (nadie la tiene tomada todavía). `!lastMessage`
+    // confirma que este insert fue el primer mensaje real de la
+    // conversación, no solo que sigue sin asignar.
+    if (!isDuplicate && !isFiller && !lastMessage && !conversation.assigned_to) {
+      await db.rpc("notify_role", {
+        p_role: "advisor",
+        p_type: "chat_unassigned_new_message",
+        p_title: "Mensaje nuevo sin asignar",
+        p_body: "Llegó un mensaje nuevo de un lead sin conversación asignada.",
+        p_entity_type: "conversation",
+        p_entity_id: conversation.id,
+        p_link_path: `/inbox/${conversation.id}`,
+      });
+    }
+
     await db.from("webhook_events").insert({
       source: "n8n:inbound",
       external_id: body.external_message_id,

@@ -167,3 +167,13 @@ export async function getHandoffPauseHours(db: SupabaseClient): Promise<number> 
   const hours = Number(data?.value);
   return Number.isFinite(hours) && hours > 0 ? hours : 4;
 }
+
+export async function getChatStaleMinutes(db: SupabaseClient): Promise<number> {
+  const { data } = await db
+    .from("app_settings")
+    .select("value")
+    .eq("key", "chat_stale_minutes")
+    .maybeSingle();
+  const minutes = Number(data?.value);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : 30;
+}

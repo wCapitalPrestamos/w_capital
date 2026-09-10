@@ -298,6 +298,7 @@ export function ApplicationActions({
                   disburseLoan(app.id, {
                     disbursed_at: String(formData.get("disbursed_at")),
                     first_payment_date: String(formData.get("first_payment_date")),
+                    bank_account_details: String(formData.get("bank_account_details") ?? ""),
                   }),
                 "Préstamo desembolsado. Calendario generado.",
               )
@@ -325,6 +326,17 @@ export function ApplicationActions({
                   required
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bank_account_details">Datos de cuenta bancaria</Label>
+              <Textarea
+                id="bank_account_details"
+                name="bank_account_details"
+                rows={2}
+                placeholder="Banco, número de cuenta/CLABE, titular…"
+                defaultValue={app.bank_account_details ?? ""}
+                required={!app.bank_account_details}
+              />
             </div>
             <Button type="submit" disabled={pending}>
               {pending ? "Generando…" : "Confirmar desembolso"}
