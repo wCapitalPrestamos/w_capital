@@ -33,6 +33,7 @@ export function ApplicationAssignments({
                     <ReassignSelect
                         value={advisorId}
                         options={advisorOptions}
+                        profileNames={profileNames}
                         placeholder="Sin asignar"
                         onAssign={(profileId) =>
                             reassignApplication(applicationId, "advisor_id", profileId)
@@ -49,6 +50,7 @@ export function ApplicationAssignments({
                     <ReassignSelect
                         value={analystId}
                         options={analystOptions}
+                        profileNames={profileNames}
                         placeholder="Sin asignar"
                         onAssign={(profileId) =>
                             reassignApplication(applicationId, "analyst_id", profileId)

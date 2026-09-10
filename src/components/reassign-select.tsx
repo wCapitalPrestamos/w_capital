@@ -17,12 +17,17 @@ export function ReassignSelect({
   onAssign,
   placeholder = "Sin asignar",
   className,
+  profileNames,
 }: {
   value: string | null;
   options: { id: string; full_name: string }[];
   onAssign: (profileId: string) => Promise<{ ok: boolean; error?: string }>;
   placeholder?: string;
   className?: string;
+  // Nombres de TODOS los perfiles (no solo los reasignables) — el valor
+  // actual puede pertenecer a alguien fuera de `options` (ej. un rol
+  // excluido del filtro), y sin esto se mostraba el UUID crudo.
+  profileNames?: Record<string, string>;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -44,7 +49,9 @@ export function ReassignSelect({
         <SelectValue placeholder={placeholder} className="flex-none truncate">
           {(profileId: string | null) =>
             profileId
-              ? (options.find((o) => o.id === profileId)?.full_name ?? profileId)
+              ? (options.find((o) => o.id === profileId)?.full_name ??
+                profileNames?.[profileId] ??
+                profileId)
               : placeholder
           }
         </SelectValue>

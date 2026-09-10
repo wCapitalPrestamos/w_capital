@@ -500,6 +500,7 @@ export function Thread({
             <ReassignSelect
               value={conversation.assigned_to}
               options={assignableProfiles}
+              profileNames={profileNames}
               placeholder="Reasignar"
               className="h-[26px] rounded-full border-transparent bg-ok-soft px-[11px] py-0 text-[11.5px] font-semibold text-ok data-placeholder:text-ok"
               onAssign={(profileId) =>
